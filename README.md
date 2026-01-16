@@ -8,8 +8,9 @@ Parallel domain decomposition solver for the 2D Helmholtz equation using MPI and
  source ./venv/bin/activate
  
  ### install packages
+
  pip install -r requirements.txt
 
+
  ### (rudimental but at least you know I'm not vibe coding this) run the first test
- cd src 
- python3 test_local_mesh.py 
+ python3 src/test_local_mesh.py 
