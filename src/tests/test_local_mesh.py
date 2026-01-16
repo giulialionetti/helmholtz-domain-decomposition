@@ -15,8 +15,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-from helmholtz_base import mesh, boundary, mass, stiffness, point_source, plot_mesh
-from helmholtz import local_mesh
+from src.helmholtz_base import mesh, boundary, mass, stiffness, point_source, plot_mesh
+from src.helmholtz import local_mesh
 
 # Test parameters
 Lx = 1.0

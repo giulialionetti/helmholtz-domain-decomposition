@@ -12,7 +12,7 @@ from scipy.sparse import csr_matrix, csc_matrix, eye
 from matplotlib import cm
 import matplotlib.pyplot as plt
 import matplotlib.tri as mtri
-from helmholtz_base import mesh, boundary, mass, stiffness, point_source, plot_mesh
+from src.helmholtz_base import mesh, boundary, mass, stiffness, point_source, plot_mesh
 
 
 
@@ -43,7 +43,7 @@ def local_mesh(Lx: float, Ly: float,
     Notes:
     ------
     - The domain is split in the y-direction into J horizontal slabs
-    - Each subdomain has size (0, Lx) × (j*Ly/J, (j+1)*Ly/J)
+    - Each subdomain has size (0, Lx) X (j*Ly/J, (j+1)*Ly/J)
     - We assume (ny - 1) is divisible by J
     """
     # Number of y-intervals per subdomain
@@ -67,8 +67,9 @@ def local_mesh(Lx: float, Ly: float,
     return vtxj, eltj
 
 
-def local_boundary(nx, ny, j, J):
-    """
+def local_boundary(nx: int, ny: int,
+                   j: int, J: int) -> tuple[np.ndarray, np.ndarray]:
+    r"""
     Construct boundary edge arrays for subdomain j.
     
     Parameters:
@@ -92,14 +93,53 @@ def local_boundary(nx, ny, j, J):
     - Physical boundaries are: bottom (j=0), top (j=J-1), left, right (all j)
     - Artificial interfaces are: bottom (j>0), top (j<J-1)
     """
-    # TODO
+    na = np.newaxis
     
-    pass
+    # Bottom boundary (y=0 for local mesh)
+    bottom = np.hstack((np.arange(0, nx-1, 1)[:, na],
+                        np.arange(1, nx, 1)[:, na]))
+    
+    # Top boundary (y=Ly_local for local mesh)
+    top = np.hstack((np.arange(nx*(ny-1), nx*ny-1, 1)[:, na],
+                     np.arange(nx*(ny-1)+1, nx*ny, 1)[:, na]))
+    
+    # Left boundary (x=0)
+    left = np.hstack((np.arange(0, nx*(ny-1), nx)[:, na],
+                      np.arange(nx, nx*ny, nx)[:, na]))
+    
+    # Right boundary (x=Lx)
+    right = np.hstack((np.arange(nx-1, nx*(ny-1), nx)[:, na],
+                       np.arange(2*nx-1, nx*ny, nx)[:, na]))
+    
+    # Determine physical vs artificial boundaries
+    beltj_phys_list = []
+    beltj_artf_list = []
+    
+    # Bottom: physical if j==0, artificial otherwise
+    if j == 0:
+        beltj_phys_list.append(bottom)
+    else:
+        beltj_artf_list.append(bottom)
+    
+    # Top: physical if j==J-1, artificial otherwise
+    if j == J - 1:
+        beltj_phys_list.append(top)
+    else:
+        beltj_artf_list.append(top)
+    
+    # Left and right are always physical
+    beltj_phys_list.extend([left, right])
+    
+    # Concatenate arrays
+    beltj_phys = np.vstack(beltj_phys_list) if beltj_phys_list else np.array([]).reshape(0, 2)
+    beltj_artf = np.vstack(beltj_artf_list) if beltj_artf_list else np.array([]).reshape(0, 2)
+    
+    
+    
+    return beltj_phys, beltj_artf
 
-
-
-def Rj_matrix(nx, ny, j, J):
-    """
+def Rj_matrix(nx: int, ny: int, j: int, J: int) -> csr_matrix:
+    r"""
     Construct local restriction matrix Rj.
     
     Rj maps global degrees of freedom V(Ω) to local degrees of freedom V(Ωj).
@@ -116,7 +156,7 @@ def Rj_matrix(nx, ny, j, J):
     Returns:
     --------
     Rj : sparse matrix
-        Restriction matrix of size |V(Ωj)| × |V(Ω)|
+        Restriction matrix of size |V(Ωj)| X |V(Ω)|
     
     Notes:
     ------
@@ -124,13 +164,39 @@ def Rj_matrix(nx, ny, j, J):
     - Each row has exactly one 1, selecting one global DOF
     - The ordering follows the local mesh numbering
     """
-    # TODO
+    # Number of y-intervals per subdomain
+    ny_per_subdomain = (ny - 1) // J
     
-    pass
+    # Local number of points
+    ny_local = ny_per_subdomain + 1
+    nv_local = nx * ny_local
+    nv_global = nx * ny
+    
+    # Starting y-index for subdomain j in global mesh
+    y_start = j * ny_per_subdomain
+    
+    # Build mapping from local to global indices
+    row_indices = []
+    col_indices = []
+    
+    for iy_local in range(ny_local):
+        iy_global = y_start + iy_local
+        for ix in range(nx):
+            local_idx = ix + iy_local * nx
+            global_idx = ix + iy_global * nx
+            row_indices.append(local_idx)
+            col_indices.append(global_idx)
+    
+    # Create sparse restriction matrix
+    data = np.ones(len(row_indices))
+    Rj = csr_matrix((data, (row_indices, col_indices)), shape=(nv_local, nv_global))
+    
+    return Rj
+    
 
 
-def Bj_matrix(nx, ny, j, J, beltj_artf):
-    """
+def Bj_matrix(nx: int, ny: int, j: int, J: int, beltj_artf: np.ndarray) -> csr_matrix:
+    r"""
     Construct interface restriction matrix Bj.
     
     Bj maps local degrees of freedom V(Ωj) to interface DOFs V(Σj).
@@ -149,19 +215,33 @@ def Bj_matrix(nx, ny, j, J, beltj_artf):
     Returns:
     --------
     Bj : sparse matrix
-        Restriction matrix of size |V(Σj)| × |V(Ωj)|
+        Restriction matrix of size |V(Σj)| X |V(Ωj)|
     
     Notes:
     ------
     - Σj = ∂Ωj \ ∂Ω (artificial interfaces only)
     - This extracts interface DOFs from the local solution
     """
-    # TODO
-    pass
+    nv_local = nx * ny
+    
+    if len(beltj_artf) == 0:
+        return csr_matrix((0, nv_local))
+    
+    # Extract unique vertex indices on artificial interfaces
+    interface_vertices = np.unique(beltj_artf.flatten())
+    n_interface = len(interface_vertices)
+    
+    # Build restriction matrix
+    row_indices = np.arange(n_interface)
+    col_indices = interface_vertices
+    data = np.ones(n_interface)
+    
+    Bj = csr_matrix((data, (row_indices, col_indices)), shape=(n_interface, nv_local))
+    
+    return Bj
 
-
-def Cj_matrix(nx, ny, j, J):
-    """
+def Cj_matrix(nx: int, ny: int, j: int, J: int) -> csr_matrix:
+    r"""
     Construct global interface restriction matrix Cj.
     
     Cj maps global interface vector x = (x1, x2, ..., xJ) to local part xj.
@@ -178,19 +258,49 @@ def Cj_matrix(nx, ny, j, J):
     Returns:
     --------
     Cj : sparse matrix
-        Restriction matrix of size |V(Σj)| × |V(S)|
-        where S = ∪j Σj is the skeleton (all interfaces)
+        Restriction matrix of size |V(Σj)| X |V(S)|
+        where S = Uj Σj is the skeleton (all interfaces)
     
     Notes:
     ------
     - This selects the portion of the global interface vector belonging to subdomain j
     - The global skeleton S consists of all interface vertices
     """
-    # TODO
+    # Total number of interface DOFs globally (J-1 interfaces, each with nx vertices)
+    n_interface_total = (J - 1) * nx
     
-    pass
-
-
+    # Subdomain j has interfaces on:
+    # - bottom (if j > 0): interface j-1
+    # - top (if j < J-1): interface j
+    
+    row_indices = []
+    col_indices = []
+    current_row = 0
+    
+    # Bottom interface (if exists)
+    if j > 0:
+        interface_idx = j - 1
+        for i in range(nx):
+            row_indices.append(current_row)
+            col_indices.append(interface_idx * nx + i)
+            current_row += 1
+    
+    # Top interface (if exists)
+    if j < J - 1:
+        interface_idx = j
+        for i in range(nx):
+            row_indices.append(current_row)
+            col_indices.append(interface_idx * nx + i)
+            current_row += 1
+    
+    n_local_interface = current_row
+    
+    # Create sparse restriction matrix
+    data = np.ones(len(row_indices))
+    Cj = csr_matrix((data, (row_indices, col_indices)), 
+                    shape=(n_local_interface, n_interface_total))
+    
+    return Cj
 
 
 def Aj_matrix(vtxj, eltj, beltj_phys, kappa):
