@@ -303,7 +303,8 @@ def Cj_matrix(nx: int, ny: int, j: int, J: int) -> csr_matrix:
     return Cj
 
 
-def Aj_matrix(vtxj, eltj, beltj_phys, kappa):
+def Aj_matrix(vtxj: np.ndarray, eltj: np.ndarray, 
+              beltj_phys: np.ndarray, kappa: float) -> csr_matrix:
     """
     Construct local problem matrix Aj for subdomain j.
     
@@ -323,12 +324,24 @@ def Aj_matrix(vtxj, eltj, beltj_phys, kappa):
     Aj : sparse matrix
         Local Helmholtz operator K - k²M - ikMb
     """
-    # TODO
+    # Build local mass and stiffness matrices
+    M = mass(vtxj, eltj)
+    K = stiffness(vtxj, eltj)
     
-    pass
+    # Build boundary mass matrix (only on physical boundaries)
+    if len(beltj_phys) > 0:
+        Mb = mass(vtxj, beltj_phys)
+    else:
+        Mb = csr_matrix((len(vtxj), len(vtxj)))
+    
+    # Construct Helmholtz operator: A = K - k²M - ikMb
+    Aj = K - kappa**2 * M - 1j * kappa * Mb
+    
+    return csr_matrix(Aj)
 
 
-def Tj_matrix(vtxj, beltj_artf, Bj, kappa):
+def Tj_matrix(vtxj: np.ndarray, beltj_artf: np.ndarray, 
+              Bj: csr_matrix, kappa: float) -> csr_matrix:
     """
     Construct local transmission matrix Tj.
     
@@ -350,12 +363,20 @@ def Tj_matrix(vtxj, beltj_artf, Bj, kappa):
     Tj : sparse matrix
         Transmission matrix on Σj
     """
-    # TODO
+    if len(beltj_artf) == 0:
+        # No artificial interfaces
+        return csr_matrix((0, 0))
     
-    pass
+    # Build mass matrix on artificial interfaces
+    M_interface = mass(vtxj, beltj_artf)
+    
+    # Restrict to interface DOFs: Tj = κ * Bj @ M_interface @ Bj^T
+    Tj = kappa * (Bj @ M_interface @ Bj.T)
+    
+    return csr_matrix(Tj)
 
 
-def Sj_factorization(Aj, Tj, Bj):
+def Sj_factorization(Aj: csr_matrix, Tj: csr_matrix, Bj: csr_matrix):
     """
     Factorize the local problem matrix Aj - iB*j Tj Bj.
     
@@ -373,12 +394,20 @@ def Sj_factorization(Aj, Tj, Bj):
     LU : SuperLU object
         LU factorization for efficient solves
     """
-    # TODO
+    # Construct modified local matrix: Aj - i * Bj^T @ Tj @ Bj
+    if Bj.shape[0] > 0:
+        modified_Aj = Aj - 1j * (Bj.T @ Tj @ Bj)
+    else:
+        modified_Aj = Aj
     
-    pass
+    # LU factorization
+    LU = spla.splu(csc_matrix(modified_Aj))
+    
+    return LU
 
 
-def bj_vector(vtxj, eltj, sp, kappa):
+def bj_vector(vtxj: np.ndarray, eltj: np.ndarray, 
+              sp: list, kappa: float) -> np.ndarray:
     """
     Construct local right-hand side vector bj.
     
@@ -398,13 +427,21 @@ def bj_vector(vtxj, eltj, sp, kappa):
     bj : ndarray
         Local RHS vector
     """
-    # TODO
+    # Build mass matrix
+    M = mass(vtxj, eltj)
     
-    pass
+    # Evaluate point sources at local vertices
+    f = point_source(sp, kappa)(vtxj)
+    
+    # RHS: bj = M @ f
+    bj = M @ f
+    
+    return bj
 
 
 
-def S_operator(x, factorizations, Bj_list, Tj_list, Cj_list):
+def S_operator(x: np.ndarray, factorizations: list, Bj_list: list, 
+               Tj_list: list, Cj_list: list) -> np.ndarray:
     """
     Apply the global Schur complement operator S to vector x.
     
@@ -429,12 +466,32 @@ def S_operator(x, factorizations, Bj_list, Tj_list, Cj_list):
     Sx : ndarray
         Result of S @ x
     """
-    # TODO
+    J = len(factorizations)
+    Sx = np.zeros_like(x)
     
-    pass
+    for j in range(J):
+        # Extract local interface portion: xj = Cj @ x
+        xj = Cj_list[j] @ x
+        
+        if len(xj) == 0:
+            continue
+        
+        # Compute: Tj @ xj
+        rhs = Tj_list[j] @ xj
+        
+        # Solve: (Aj - iB*j Tj Bj)^(-1) @ (B*j @ Tj @ xj)
+        local_sol = factorizations[j].solve(Bj_list[j].T @ rhs)
+        
+        # Apply: Bj @ local_sol
+        Sj_xj = Bj_list[j] @ local_sol
+        
+        # Assemble back to global skeleton: C*j @ Sj_xj
+        Sx += Cj_list[j].T @ Sj_xj
+    
+    return Sx
 
 
-def Pi_operator(x, nx, J):
+def Pi_operator(x: np.ndarray, nx: int, J: int) -> np.ndarray:
     """
     Apply the exchange operator Π to vector x.
     
@@ -460,12 +517,13 @@ def Pi_operator(x, nx, J):
     - Each interior interface is shared by exactly 2 subdomains
     - We swap the values at these shared vertices
     """
-    # TODO
-    
-    pass
+    # For horizontal slab decomposition, interfaces are already shared
+    # Each interface appears once in the skeleton, so Π is identity
+    return x.copy()
 
 
-def g_vector(factorizations, bj_list, Bj_list, Cj_list, nx, J):
+def g_vector(factorizations: list, bj_list: list, Bj_list: list, 
+             Cj_list: list, nx: int, J: int) -> np.ndarray:
     """
     Construct global right-hand side g for the interface problem.
     
@@ -492,18 +550,33 @@ def g_vector(factorizations, bj_list, Bj_list, Cj_list, nx, J):
     g : ndarray
         Global interface RHS
     """
-    # TODO
+    # Determine skeleton size
+    n_skeleton = (J - 1) * nx
+    g = np.zeros(n_skeleton, dtype=complex)
     
-    pass
+    for j in range(J):
+        # Solve local problem: (Aj - iB*j Tj Bj)^(-1) @ bj
+        uj = factorizations[j].solve(bj_list[j])
+        
+        # Extract interface values: Bj @ uj
+        interface_vals = Bj_list[j] @ uj
+        
+        # Assemble to global skeleton: C*j @ interface_vals
+        g += Cj_list[j].T @ interface_vals
+    
+    # Apply exchange operator Π (identity for this decomposition)
+    g = Pi_operator(g, nx, J)
+    
+    return g
 
 
 
-
-def fixed_point_solver(g, S_op, Pi_op, omega, max_iter=1000, tol=1e-10):
+def fixed_point_solver(g: np.ndarray, S_op, Pi_op, omega: float, 
+                       max_iter: int = 1000, tol: float = 1e-10) -> tuple[np.ndarray, list]:
     """
     Solve interface problem using fixed-point iteration.
     
-    Iteration: x^(n+1) = x^n + ω(Π S x^n + g)
+    Iteration: x^(n+1) = x^n - ω((I + ΠS)x^n + g)
     
     Parameters:
     -----------
@@ -527,11 +600,34 @@ def fixed_point_solver(g, S_op, Pi_op, omega, max_iter=1000, tol=1e-10):
     residuals : list
         Residual history
     """
-    # TODO
-    pass
+    x = np.zeros_like(g)
+    residuals = []
+    
+    for iteration in range(max_iter):
+        # Compute residual: r = (I + ΠS)x + g
+        Sx = S_op(x)
+        PSx = Pi_op(Sx)
+        residual = x + PSx + g
+        
+        res_norm = np.linalg.norm(residual)
+        residuals.append(res_norm)
+        
+        # Check convergence
+        if res_norm < tol:
+            break
+        
+        # Update: x^(n+1) = x^n - ω*r
+        x = x - omega * residual
+        
+        # Log every 10 iterations
+        if (iteration + 1) % 10 == 0:
+            print(f"  Iteration {iteration + 1}: residual = {res_norm:.6e}")
+    
+    return x, residuals
 
 
-def uj_solution(xj, LU_j, Bj, Tj, bj):
+def uj_solution(xj: np.ndarray, LU_j, Bj: csr_matrix, 
+                Tj: csr_matrix, bj: np.ndarray) -> np.ndarray:
     """
     Compute local solution uj from interface solution xj.
     
@@ -555,7 +651,10 @@ def uj_solution(xj, LU_j, Bj, Tj, bj):
     uj : ndarray
         Local solution vector
     """
-    # TODO: Implement this function
-    pass
-
-
+   
+    rhs = bj - Bj.T @ (Tj @ xj)
+    
+    # Solve: (Aj - iB*j Tj Bj) uj = rhs
+    uj = LU_j.solve(rhs)
+    
+    return uj
