@@ -505,47 +505,64 @@ def Pi_operator(x: np.ndarray, nx: int, J: int) -> np.ndarray:
 def g_vector(factorizations: list, bj_list: list, Bj_list: list, 
              Cj_list: list, nx: int, J: int) -> np.ndarray:
     """
-    Construct global right-hand side g for the interface problem.
-    
-    g = ΠS b where b = (b1, b2, ..., bJ) with
-    bj = Bj (Aj - iB*j Tj Bj)^(-1) bj
-    
-    Parameters:
-    -----------
-    factorizations : list
-        List of LU factorizations
-    bj_list : list
-        List of local RHS vectors
-    Bj_list : list
-        List of Bj matrices
-    Cj_list : list
-        List of Cj matrices
+    Construct the global right-hand side vector 'g' for the interface linear system.
+
+    In the DDM formulation, 'g' represents the contribution of the physical 
+    volume sources (the RHS of the Helmholtz equation) projected onto the 
+    subdomain interfaces.
+
+    Mathematical Definition
+    -----------------------
+    g = Π ( sum_j C_j^T B_j A_j^{-1} b_j )
+
+    Step-by-step construction:
+    1. Solve local problems with zero interface input but full volume source:
+       u_j^{local} = (A_{local})^{-1} b_j
+    2. Restrict solution to the boundary:
+       v_j = B_j u_j^{local}
+    3. Assemble into global vector:
+       v_{global} = sum (C_j^T v_j)
+    4. Apply exchange operator:
+       g = Π v_{global}
+
+    Parameters
+    ----------
+    factorizations : list[scipy.sparse.linalg.SuperLU]
+        List of pre-computed LU factorizations for each subdomain operator.
+    bj_list : list[np.ndarray]
+        List of local volume source vectors (b_j) for each subdomain.
+    Bj_list : list[scipy.sparse.csr_matrix]
+        List of restriction matrices mapping volume DOFs to boundary DOFs.
+    Cj_list : list[scipy.sparse.csr_matrix]
+        List of boolean matrices mapping local boundary DOFs to the global 
+        interface vector.
     nx : int
-        Number of points in x direction
+        Number of grid points in the x-direction (defines interface size).
     J : int
-        Number of subdomains
-    
-    Returns:
-    --------
-    g : ndarray
-        Global interface RHS
+        Total number of subdomains.
+
+    Returns
+    -------
+    g : np.ndarray
+        The global interface source vector (size: 2 * (J-1) * nx).
     """
-    # Determine skeleton size
+    # Determine skeleton size: (J-1) interfaces, 2 sides per interface
     n_skeleton = 2 * (J - 1) * nx
-    g = np.zeros(n_skeleton, dtype=complex)
+    g_temp = np.zeros(n_skeleton, dtype=complex)
     
     for j in range(J):
-        # Solve local problem: (Aj - iB*j Tj Bj)^(-1) @ bj
+        # 1. Solve local problem driven ONLY by volume source bj
+        #    (Aj - i B_j^T Tj Bj) uj = bj
         uj = factorizations[j].solve(bj_list[j])
         
-        # Extract interface values: Bj @ uj
+        # 2. Extract trace on the boundary: Bj @ uj
         interface_vals = Bj_list[j] @ uj
         
-        # Assemble to global skeleton: C*j @ interface_vals
-        g += Cj_list[j].T @ interface_vals
+        # 3. Map local boundary values to global position
+        g_temp += Cj_list[j].T @ interface_vals
     
-    # Apply exchange operator Π
-    g = Pi_operator(g, nx, J)
+    # 4. Apply exchange operator to finalize g
+    g = Pi_operator(g_temp, nx, J)
     
     return g
 
@@ -554,27 +571,60 @@ def g_vector(factorizations: list, bj_list: list, Bj_list: list,
 def fixed_point_solver(g: np.ndarray, S_op, Pi_op, omega: float, 
                        max_iter: int = 1000, tol: float = 1e-10) -> tuple[np.ndarray, list, bool]:
     """
-    Solve interface problem using fixed-point iteration.
+    Solve the DDM interface linear system using Richardson (Fixed-Point) iteration.
+
+    This function solves the global interface problem:
+        (I + Π S) x = -g
     
-    Iteration: x^(n+1) = x^n - ω((I + ΠS)x^n + g)
-    
-    Returns:
-    --------
-    x : ndarray
-        Solution
+    It uses a damped fixed-point iteration scheme (Richardson iteration) to find 
+    the equilibrium state of the interface variables.
+
+    Iteration Scheme
+    ----------------
+    Calculates the residual r_k and updates solution x_k:
+        r_k = (I + Π S) x_k + g
+        x_{k+1} = x_k - ω * r_k
+
+    Parameters
+    ----------
+    g : np.ndarray
+        The global interface source vector (right-hand side).
+    S_op : callable
+        Operator function S(x) that computes the subdomain response. 
+        Mathematically: S = diag(S_1, ..., S_J).
+    Pi_op : callable
+        Operator function Pi(x) that handles the exchange of data between 
+        neighboring subdomains (permutation/communication).
+    omega : float
+        Relaxation parameter (damping factor). Controls convergence speed 
+        and stability. 0 < omega <= 1 is typical.
+    max_iter : int, optional
+        Maximum number of iterations allowed (default: 1000).
+    tol : float, optional
+        Convergence tolerance for the residual norm (default: 1e-10).
+
+    Returns
+    -------
+    x : np.ndarray
+        The converged solution vector for the interface variables.
     residuals : list
-        Residual history
+        History of the L2 norm of the residual at each iteration.
     converged : bool
-        Whether the solver converged within max_iter or not
+        True if the residual norm dropped below 'tol', False otherwise.
     """
     x = np.zeros_like(g)
     residuals = []
     converged = False
     
-    for _ in range(max_iter): # _ for iteration count (not used)
+    for _ in range(max_iter):
+        # Apply the linear operator A = (I + Pi S)
         Sx = S_op(x)
         PSx = Pi_op(Sx)
+        
+        # Calculate residual: r = Ax - b = (I + Pi S)x + g
+        # Note: We are solving Ax = -g, so Ax + g = 0
         residual = x + PSx + g
+        
         res_norm = np.linalg.norm(residual)
         residuals.append(res_norm)
         
@@ -582,40 +632,52 @@ def fixed_point_solver(g: np.ndarray, S_op, Pi_op, omega: float,
             converged = True 
             break
         
+        # Richardson update step
         x = x - omega * residual
     
-    return x, residuals, converged 
-
+    return x, residuals, converged
 
 def uj_solution(xj: np.ndarray, LU_j, Bj: csr_matrix, 
                 Tj: csr_matrix, bj: np.ndarray) -> np.ndarray:
     """
-    Compute local solution uj from interface solution xj.
-    
-    uj = (Aj - iB*j Tj Bj)^(-1) (bj - B*j Tj xj)
-    
-    Parameters:
-    -----------
-    xj : ndarray
-        Local interface solution
-    LU_j : SuperLU object
-        Factorized local matrix
-    Bj : sparse matrix
-        Interface restriction matrix
-    Tj : sparse matrix
-        Transmission matrix
-    bj : ndarray
-        Local RHS
-    
-    Returns:
-    --------
-    uj : ndarray
-        Local solution vector
+    Reconstruct the full local solution u_j using the converged interface data x_j.
+
+    This function acts as the final step of the DDM solver. Once the interface 
+    variables x_j (incoming impedance traces) are found, they are used as 
+    boundary conditions to solve the local volumetric problem one last time.
+
+    Mathematical Formulation
+    ------------------------
+    The local system being solved is:
+        A_{local} u_j = b_j + B_j^T T_j x_j
+
+    Where:
+        u_j = A_{local}^{-1} (b_j + B_j^T T_j x_j)
+
+    Parameters
+    ----------
+    xj : np.ndarray
+        The converged interface data (incoming Robin traces) for this subdomain.
+    LU_j : scipy.sparse.linalg.SuperLU
+        The pre-computed LU factorization of the local operator 
+        (A_j + B_j^T T_j B_j).
+    Bj : scipy.sparse.csr_matrix
+        The restriction matrix mapping volume DOFs to boundary DOFs.
+    Tj : scipy.sparse.csr_matrix
+        The transmission (impedance) matrix.
+    bj : np.ndarray
+        The original local volume source vector (right-hand side).
+
+    Returns
+    -------
+    np.ndarray
+        The fully reconstructed solution vector u_j on the subdomain mesh.
     """
-   
+    
+    # Map interface data back to volume source terms
     rhs = bj + Bj.T @ (Tj @ xj)
     
-    # Solve: (Aj - iB*j Tj Bj) uj = rhs
+    # Solve the local volume problem
     uj = LU_j.solve(rhs)
     
     return uj
