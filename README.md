@@ -1,4 +1,4 @@
-```markdown
+
 # Helmholtz Domain Decomposition Solver
 
 Parallel domain decomposition solver for the 2D Helmholtz equation using MPI and finite elements.
@@ -23,8 +23,6 @@ pip install -r requirements.txt
 
 ```
 
----
-
 ## Usage
 
 This project is structured as a local package. To ensure imports work correctly, **always run scripts from the project root directory** using the `-m` flag.
@@ -39,5 +37,3 @@ python3 -m src.GMRES
 
 # Run the fixed point solver
 python3 -m src.tests.test_fixed_point_solver
-
-```
