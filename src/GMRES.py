@@ -9,13 +9,36 @@ import matplotlib.pyplot as plt
 import time
 import os
 import logging
+import sys
+
+# Ensure imports work from project root (Path fix)
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = current_path = current_dir
+while not os.path.exists(os.path.join(project_root, 'src')):
+    parent = os.path.dirname(project_root)
+    if parent == project_root:
+        project_root = os.path.abspath(os.path.join(current_dir, "../"))
+        break
+    project_root = parent
+
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
+
+log_file = "GMRES_results.log"
 
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
-    datefmt='%H:%M:%S'
+    datefmt='%H:%M:%S',
+    filename=log_file,  # Log to this file
+    filemode='w'        # 'w' overwrites, 'a' appends
 )
+
+
+
 logger = logging.getLogger(__name__)
+
 
 from src.helmholtz import (local_mesh, local_boundary, Bj_matrix, Cj_matrix,
                            Aj_matrix, Tj_matrix, Sj_factorization, bj_vector,
@@ -23,8 +46,10 @@ from src.helmholtz import (local_mesh, local_boundary, Bj_matrix, Cj_matrix,
                            fixed_point_solver, uj_solution)
 from src.helmholtz_base import mesh, boundary, mass, stiffness, point_source, plot_mesh
 
-plots_dir = os.path.join('..', 'plots')
+plots_dir = os.path.join(project_root, 'plots')
 os.makedirs(plots_dir, exist_ok=True)
+
+logger.info(f"Logging initialized. Output will be saved to {log_file}")
 
 # Common parameters
 Lx, Ly = 1.0, 2.0
@@ -112,10 +137,12 @@ factorizations, Bj_list, Cj_list, Tj_list, bj_list, vtxj_list, eltj_list, g = co
 # Fixed point solver
 logger.info("Running fixed-point solver")
 omega = 0.1
-x_fp, residuals_fp, convergence = fixed_point_solver(g, 
-                                        lambda x: S_operator(x, factorizations, Bj_list, Tj_list, Cj_list),
-                                        lambda x: Pi_operator(x, nx, J),
-                                        omega, max_iter=400, tol=1e-10)
+# Note: fixed_point_solver returns 3 values: x, residuals, converged
+x_fp, residuals_fp, convergence = fixed_point_solver(
+    -g, # Note the minus g
+    lambda x: S_operator(x, factorizations, Bj_list, Tj_list, Cj_list),
+    lambda x: Pi_operator(x, nx, J),
+    omega, max_iter=400, tol=1e-10)
 logger.info(f"  Iterations: {len(residuals_fp)}, Final residual: {residuals_fp[-1]:.6e}, Converged: {convergence}")
 
 # GMRES solver
@@ -134,7 +161,6 @@ ax.grid(True, alpha=0.3)
 ax.legend(fontsize=11)
 plt.tight_layout()
 plt.savefig(os.path.join(plots_dir, 'task3_convergence_comparison.png'), dpi=150)
-logger.info(f"Saved: {os.path.join(plots_dir, 'task3_convergence_comparison.png')}")
 
 # ==============================================================================
 # Task 4: Mesh refinement study
@@ -245,7 +271,7 @@ ax3.legend(fontsize=10)
 
 plt.tight_layout()
 plt.savefig(os.path.join(plots_dir, 'tasks_4_5_convergence_studies.png'), dpi=150)
-logger.info(f"Saved: {os.path.join(plots_dir, 'tasks_4_5_convergence_studies.png')}")
+
 
 # ==============================================================================
 # Task 6: Plot local solutions
@@ -287,7 +313,6 @@ for j in range(J):
 
 plt.tight_layout()
 plt.savefig(os.path.join(plots_dir, 'task6_local_solutions_real.png'), dpi=150)
-logger.info(f"Saved: {os.path.join(plots_dir, 'task6_local_solutions_real.png')}")
 
 # Plot modulus
 fig, axes = plt.subplots(2, 2, figsize=(14, 12))
@@ -307,7 +332,7 @@ for j in range(J):
 
 plt.tight_layout()
 plt.savefig(os.path.join(plots_dir, 'task6_local_solutions_modulus.png'), dpi=150)
-logger.info(f"Saved: {os.path.join(plots_dir, 'task6_local_solutions_modulus.png')}")
+
 # ==============================================================================
 # Task 7: Runtime comparison
 # ==============================================================================
@@ -326,11 +351,10 @@ logger.info(f"  Time: {time_ddm:.3f}s, Iterations: {len(residuals_ddm)}")
 logger.info("Building and solving full problem with GMRES")
 vtx, elt = mesh(nx, ny, Lx, Ly)
 
-# --- FIX START ---
-# 'boundary' returns a dict. We must stack all edges into one array for 'mass'.
+# --- CORRECT FIX: Stack edges for mass matrix ---
 boundary_dict = boundary(nx, ny)
-belt = np.vstack(list(boundary_dict.values())) 
-# --- FIX END ---
+belt = np.vstack(list(boundary_dict.values()))
+# -----------------------------------------------
 
 M = mass(vtx, elt)
 Mb = mass(vtx, belt)
@@ -395,7 +419,6 @@ for bar in bars2:
 
 plt.tight_layout()
 plt.savefig(os.path.join(plots_dir, 'task7_runtime_comparison.png'), dpi=150)
-logger.info(f"Saved: {os.path.join(plots_dir, 'task7_runtime_comparison.png')}")
 
 
 logger.info(f"Task 3: Convergence comparison - GMRES converges {len(residuals_fp)//len(residuals_gmres)}x faster")
