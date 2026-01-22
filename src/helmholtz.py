@@ -587,26 +587,11 @@ def g_vector(factorizations: list, bj_list: list, Bj_list: list,
 
 
 def fixed_point_solver(g: np.ndarray, S_op, Pi_op, omega: float, 
-                       max_iter: int = 1000, tol: float = 1e-10) -> tuple[np.ndarray, list]:
+                       max_iter: int = 1000, tol: float = 1e-10) -> tuple[np.ndarray, list, bool]:
     """
     Solve interface problem using fixed-point iteration.
     
     Iteration: x^(n+1) = x^n - ω((I + ΠS)x^n + g)
-    
-    Parameters:
-    -----------
-    g : ndarray
-        RHS vector
-    S_op : callable
-        Function implementing S @ x
-    Pi_op : callable
-        Function implementing Π @ x
-    omega : float
-        Relaxation parameter (0 < ω < 1)
-    max_iter : int
-        Maximum iterations
-    tol : float
-        Convergence tolerance
     
     Returns:
     --------
@@ -617,28 +602,22 @@ def fixed_point_solver(g: np.ndarray, S_op, Pi_op, omega: float,
     """
     x = np.zeros_like(g)
     residuals = []
+    converged = False
     
-    for iteration in range(max_iter):
-        # Compute residual: r = (I + ΠS)x + g
+    for _ in range(max_iter):
         Sx = S_op(x)
         PSx = Pi_op(Sx)
         residual = x + PSx + g
-        
         res_norm = np.linalg.norm(residual)
         residuals.append(res_norm)
         
-        # Check convergence
         if res_norm < tol:
+            converged = True 
             break
         
-        # Update: x^(n+1) = x^n - ω*r
         x = x - omega * residual
-        
-        # Log every 10 iterations
-        if (iteration + 1) % 10 == 0:
-            print(f"  Iteration {iteration + 1}: residual = {res_norm:.6e}")
     
-    return x, residuals
+    return x, residuals, converged 
 
 
 def uj_solution(xj: np.ndarray, LU_j, Bj: csr_matrix, 

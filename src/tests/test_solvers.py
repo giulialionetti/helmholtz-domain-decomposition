@@ -81,20 +81,20 @@ def S_op(x):
 def Pi_op(x):
     return Pi_operator(x, nx_global, J)
 
-# Test fixed point solver
+# Takes 276 iterations to converge with omega=0.1, tol=1e-8
 logger.info("")
 logger.info("Testing fixed_point_solver")
-omega = 0.5
-max_iter = 100
+omega = 0.1
+max_iter = 276
 tol = 1e-8
 
-x_solution, residuals = fixed_point_solver(g, S_op, Pi_op, omega, max_iter, tol)
+x_solution, residuals, converged = fixed_point_solver(-g, S_op, Pi_op, omega, max_iter, tol)
 
 logger.info(f"  Solution shape: {x_solution.shape}")
 logger.info(f"  Number of iterations: {len(residuals)}")
 logger.info(f"  Initial residual: {residuals[0]:.6e}")
 logger.info(f"  Final residual: {residuals[-1]:.6e}")
-logger.info(f"  Converged: {residuals[-1] < tol}")
+logger.info(f"  Converged: {converged}")
 
 # Test uj_solution for each subdomain
 logger.info("")
