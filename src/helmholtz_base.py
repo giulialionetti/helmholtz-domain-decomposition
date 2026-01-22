@@ -35,7 +35,12 @@ def boundary(nx, ny):
                         np.arange(nx,nx*ny,nx)[:,na]))
     right  = np.hstack((np.arange(nx-1,nx*(ny-1),nx)[:,na],
                         np.arange(2*nx-1,nx*ny,nx)[:,na]))
-    return np.vstack((bottom, top, left, right))
+    return {
+        'bottom': bottom,
+        'top': top,
+        'left': left,
+        'right': right
+    }
 
 def get_area(vtx, elt):
     d = np.size(elt, 1)

@@ -108,48 +108,28 @@ def local_boundary(nx: int, ny: int,
     - Physical boundaries are: bottom (j=0), top (j=J-1), left, right (all j)
     - Artificial interfaces are: bottom (j>0), top (j<J-1)
     """
-    na = np.newaxis
+    edges = boundary(nx, ny)
     
-    # Bottom boundary (y=0 for local mesh)
-    bottom = np.hstack((np.arange(0, nx-1, 1)[:, na],
-                        np.arange(1, nx, 1)[:, na]))
-    
-    # Top boundary (y=Ly_local for local mesh)
-    top = np.hstack((np.arange(nx*(ny-1), nx*ny-1, 1)[:, na],
-                     np.arange(nx*(ny-1)+1, nx*ny, 1)[:, na]))
-    
-    # Left boundary (x=0)
-    left = np.hstack((np.arange(0, nx*(ny-1), nx)[:, na],
-                      np.arange(nx, nx*ny, nx)[:, na]))
-    
-    # Right boundary (x=Lx)
-    right = np.hstack((np.arange(nx-1, nx*(ny-1), nx)[:, na],
-                       np.arange(2*nx-1, nx*ny, nx)[:, na]))
-    
-    # Determine physical vs artificial boundaries
     beltj_phys_list = []
     beltj_artf_list = []
     
     # Bottom: physical if j==0, artificial otherwise
     if j == 0:
-        beltj_phys_list.append(bottom)
+        beltj_phys_list.append(edges['bottom'])
     else:
-        beltj_artf_list.append(bottom)
+        beltj_artf_list.append(edges['bottom'])
     
     # Top: physical if j==J-1, artificial otherwise
     if j == J - 1:
-        beltj_phys_list.append(top)
+        beltj_phys_list.append(edges['top'])
     else:
-        beltj_artf_list.append(top)
+        beltj_artf_list.append(edges['top'])
     
     # Left and right are always physical
-    beltj_phys_list.extend([left, right])
+    beltj_phys_list.extend([edges['left'], edges['right']])
     
-    # Concatenate arrays
     beltj_phys = np.vstack(beltj_phys_list) if beltj_phys_list else np.array([]).reshape(0, 2)
     beltj_artf = np.vstack(beltj_artf_list) if beltj_artf_list else np.array([]).reshape(0, 2)
-    
-    
     
     return beltj_phys, beltj_artf
 
@@ -410,10 +390,10 @@ def Sj_factorization(Aj: csr_matrix, Tj: csr_matrix, Bj: csr_matrix):
         LU factorization for efficient solves
     """
     # Construct modified local matrix: Aj - i * Bj^T @ Tj @ Bj
-    if Bj.shape[0] > 0:
-        modified_Aj = Aj - 1j * (Bj.T @ Tj @ Bj)
+    if Bj.shape[0] > 0: # If there are artificial interfaces
+        modified_Aj = Aj - 1j * (Bj.T @ Tj @ Bj) 
     else:
-        modified_Aj = Aj
+        modified_Aj = Aj # No modification needed
     
     # LU factorization
     LU = spla.splu(csc_matrix(modified_Aj))
@@ -599,12 +579,14 @@ def fixed_point_solver(g: np.ndarray, S_op, Pi_op, omega: float,
         Solution
     residuals : list
         Residual history
+    converged : bool
+        Whether the solver converged within max_iter or not
     """
     x = np.zeros_like(g)
     residuals = []
     converged = False
     
-    for _ in range(max_iter):
+    for _ in range(max_iter): # _ for iteration count (not used)
         Sx = S_op(x)
         PSx = Pi_op(Sx)
         residual = x + PSx + g
