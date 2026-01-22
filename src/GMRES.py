@@ -103,7 +103,7 @@ logger.info("")
 logger.info("Tasks 1-3: Fixed point, GMRES, and convergence comparison")
 logger.info("-"*70)
 
-nx, ny, J = 17, 33, 4
+nx, ny, J = 33, 65, 4
 logger.info(f"Configuration: {nx}x{ny} mesh, {J} subdomains")
 
 components = build_ddm_solver(nx, ny, J)
@@ -111,12 +111,12 @@ factorizations, Bj_list, Cj_list, Tj_list, bj_list, vtxj_list, eltj_list, g = co
 
 # Fixed point solver
 logger.info("Running fixed-point solver")
-omega = 0.3
-x_fp, residuals_fp = fixed_point_solver(g, 
+omega = 0.1
+x_fp, residuals_fp, convergence = fixed_point_solver(g, 
                                         lambda x: S_operator(x, factorizations, Bj_list, Tj_list, Cj_list),
                                         lambda x: Pi_operator(x, nx, J),
-                                        omega, max_iter=200, tol=1e-10)
-logger.info(f"  Iterations: {len(residuals_fp)}, Final residual: {residuals_fp[-1]:.6e}")
+                                        omega, max_iter=400, tol=1e-10)
+logger.info(f"  Iterations: {len(residuals_fp)}, Final residual: {residuals_fp[-1]:.6e}, Converged: {convergence}")
 
 # GMRES solver
 logger.info("Running GMRES solver")
@@ -308,7 +308,6 @@ for j in range(J):
 plt.tight_layout()
 plt.savefig(os.path.join(plots_dir, 'task6_local_solutions_modulus.png'), dpi=150)
 logger.info(f"Saved: {os.path.join(plots_dir, 'task6_local_solutions_modulus.png')}")
-
 # ==============================================================================
 # Task 7: Runtime comparison
 # ==============================================================================
@@ -326,7 +325,13 @@ logger.info(f"  Time: {time_ddm:.3f}s, Iterations: {len(residuals_ddm)}")
 # Full GMRES
 logger.info("Building and solving full problem with GMRES")
 vtx, elt = mesh(nx, ny, Lx, Ly)
-belt = boundary(nx, ny)
+
+# --- FIX START ---
+# 'boundary' returns a dict. We must stack all edges into one array for 'mass'.
+boundary_dict = boundary(nx, ny)
+belt = np.vstack(list(boundary_dict.values())) 
+# --- FIX END ---
+
 M = mass(vtx, elt)
 Mb = mass(vtx, belt)
 K = stiffness(vtx, elt)

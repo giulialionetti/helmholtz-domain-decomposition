@@ -544,7 +544,7 @@ def g_vector(factorizations: list, bj_list: list, Bj_list: list,
         # Assemble to global skeleton: C*j @ interface_vals
         g += Cj_list[j].T @ interface_vals
     
-    # Apply exchange operator Π (identity for this decomposition)
+    # Apply exchange operator Π
     g = Pi_operator(g, nx, J)
     
     return g
@@ -613,7 +613,7 @@ def uj_solution(xj: np.ndarray, LU_j, Bj: csr_matrix,
         Local solution vector
     """
    
-    rhs = bj - Bj.T @ (Tj @ xj)
+    rhs = bj + Bj.T @ (Tj @ xj)
     
     # Solve: (Aj - iB*j Tj Bj) uj = rhs
     uj = LU_j.solve(rhs)
