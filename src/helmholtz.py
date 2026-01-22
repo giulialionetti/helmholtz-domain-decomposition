@@ -236,65 +236,57 @@ def Bj_matrix(nx: int, ny: int, j: int, J: int, beltj_artf: np.ndarray) -> csr_m
     return Bj
 
 def Cj_matrix(nx: int, ny: int, j: int, J: int) -> csr_matrix:
-    r"""
-    Construct global interface restriction matrix Cj.
-    
-    Cj maps global interface vector x = (x1, x2, ..., xJ) to local part xj.
-    
-    Parameters:
-    -----------
-    nx, ny : int
-        Number of points for GLOBAL mesh
-    j : int
-        Subdomain index
-    J : int
-        Total number of subdomains
-    
-    Returns:
-    --------
-    Cj : sparse matrix
-        Restriction matrix of size |V(Σj)| X |V(S)|
-        where S = Uj Σj is the skeleton (all interfaces)
-    
-    Notes:
-    ------
-    - This selects the portion of the global interface vector belonging to subdomain j
-    - The global skeleton S consists of all interface vertices
     """
-    # Total number of interface DOFs globally (J-1 interfaces, each with nx vertices)
-    n_interface_total = (J - 1) * nx
+    Construct global interface restriction matrix Cj with 2-sided interfaces.
     
-    # Subdomain j has interfaces on:
-    # - bottom (if j > 0): interface j-1
-    # - top (if j < J-1): interface j
+    Mapping logic:
+    - If Subdomain j has a BOTTOM interface (connecting to j-1):
+      It maps to Interface j-1, Side 1 (the 'Down' side belonging to j).
+    - If Subdomain j has a TOP interface (connecting to j+1):
+      It maps to Interface j, Side 0 (the 'Up' side belonging to j).
+    """
+    # Total global interface DOFs: (J-1) interfaces * 2 sides * nx points
+    n_interface_total = 2 * (J - 1) * nx
     
     row_indices = []
     col_indices = []
     current_row = 0
     
-    # Bottom interface (if exists)
+    # --- 1. Bottom Interface (if exists) ---
+    # This is Global Interface (j-1). We are on the top side of it.
     if j > 0:
         interface_idx = j - 1
+        # Block index for "Side 1" of interface_idx is: 2 * interface_idx + 1
+        global_start_idx = (2 * interface_idx + 1) * nx
+        
         for i in range(nx):
             row_indices.append(current_row)
-            col_indices.append(interface_idx * nx + i)
+            col_indices.append(global_start_idx + i)
             current_row += 1
     
-    # Top interface (if exists)
+    # --- 2. Top Interface (if exists) ---
+    # This is Global Interface (j). We are on the bottom side of it.
     if j < J - 1:
         interface_idx = j
+        # Block index for "Side 0" of interface_idx is: 2 * interface_idx
+        global_start_idx = (2 * interface_idx) * nx
+        
         for i in range(nx):
             row_indices.append(current_row)
-            col_indices.append(interface_idx * nx + i)
+            col_indices.append(global_start_idx + i)
             current_row += 1
-    
+            
     n_local_interface = current_row
     
     # Create sparse restriction matrix
-    data = np.ones(len(row_indices))
-    Cj = csr_matrix((data, (row_indices, col_indices)), 
-                    shape=(n_local_interface, n_interface_total))
-    
+    # Note: If a subdomain has no interfaces (J=1), this returns empty
+    if n_local_interface > 0:
+        data = np.ones(len(row_indices))
+        Cj = csr_matrix((data, (row_indices, col_indices)), 
+                        shape=(n_local_interface, n_interface_total))
+    else:
+        Cj = csr_matrix((0, n_interface_total))
+        
     return Cj
 
 
@@ -490,31 +482,24 @@ def Pi_operator(x: np.ndarray, nx: int, J: int) -> np.ndarray:
     """
     Apply the exchange operator Π to vector x.
     
-    Π swaps interface values between neighboring subdomains.
-    
-    Parameters:
-    -----------
-    x : ndarray
-        Global interface vector
-    nx : int
-        Number of points in x direction
-    J : int
-        Number of subdomains
-    
-    Returns:
-    --------
-    Px : ndarray
-        Result of Π @ x
-    
-    Notes:
-    ------
-    - Due to the horizontal slab decomposition, exchange is simple
-    - Each interior interface is shared by exactly 2 subdomains
-    - We swap the values at these shared vertices
+    For every interface k:
+    - Swaps Block 2k (Side 0) with Block 2k+1 (Side 1).
     """
-    # For horizontal slab decomposition, interfaces are already shared
-    # Each interface appears once in the skeleton, so Π is identity
-    return x
+    Px = np.zeros_like(x)
+    n_interfaces = J - 1
+    
+    for k in range(n_interfaces):
+        # Indices for Side 0 (belonging to subdomain below)
+        idx_side0 = slice((2 * k) * nx, (2 * k + 1) * nx)
+        
+        # Indices for Side 1 (belonging to subdomain above)
+        idx_side1 = slice((2 * k + 1) * nx, (2 * k + 2) * nx)
+        
+        # Perform Swap
+        Px[idx_side0] = x[idx_side1]
+        Px[idx_side1] = x[idx_side0]
+        
+    return Px
 
 
 def g_vector(factorizations: list, bj_list: list, Bj_list: list, 
@@ -546,7 +531,7 @@ def g_vector(factorizations: list, bj_list: list, Bj_list: list,
         Global interface RHS
     """
     # Determine skeleton size
-    n_skeleton = (J - 1) * nx
+    n_skeleton = 2 * (J - 1) * nx
     g = np.zeros(n_skeleton, dtype=complex)
     
     for j in range(J):
