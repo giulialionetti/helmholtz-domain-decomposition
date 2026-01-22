@@ -28,13 +28,6 @@ logging.basicConfig(
     filemode='w'
 )
 
-# Add console handler so you see output in terminal too
-console = logging.StreamHandler()
-console.setLevel(logging.INFO)
-formatter = logging.Formatter('%(asctime)s - %(message)s', datefmt='%H:%M:%S')
-console.setFormatter(formatter)
-logging.getLogger('').addHandler(console)
-
 logger = logging.getLogger()
 
 try:
@@ -87,16 +80,14 @@ def run_convergence_test():
         Tj_list.append(Tj)
         bj_list.append(bj)
 
-    # --- Generate Global RHS ---
+   
     g = g_vector(factorizations, bj_list, Bj_list, Cj_list, nx_global, J)
-    
-    # Double check size one last time
     expected_size = 2 * (J - 1) * nx_global
     if g.shape[0] != expected_size:
         logger.error(f"Size Mismatch! Got {g.shape[0]}, Expected {expected_size}")
         return
 
-    # --- Run Solver ---
+   
     def S_op(x):
         return S_operator(x, factorizations, Bj_list, Tj_list, Cj_list)
 
@@ -104,8 +95,8 @@ def run_convergence_test():
         return Pi_operator(x, nx_global, J)
 
     omega = 0.1
-    max_iter = 200
-    tol = 1e-6
+    max_iter = 400
+    tol = 1e-8 # double precision
     
     logger.info("Starting Fixed Point Solver...")
     x_sol, res, converged = fixed_point_solver(-g, S_op, Pi_op, omega, max_iter, tol)
