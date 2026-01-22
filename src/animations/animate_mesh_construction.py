@@ -1,17 +1,33 @@
 #!/usr/bin/env python3
 """
-Animated visualization of mesh construction: vertices → edges → triangles
+Animated visualization of mesh construction: vertices -> edges -> triangles
 """
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import os
+import sys
+
+# --- ROBUST PATH SETUP ---
+# Find the project root by looking for the 'src' directory
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = current_dir
+while not os.path.exists(os.path.join(project_root, 'src')):
+    parent = os.path.dirname(project_root)
+    if parent == project_root:
+        # Fallback: assume standard structure
+        project_root = os.path.abspath(os.path.join(current_dir, "../../"))
+        break
+    project_root = parent
+
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
 
 from src.helmholtz import local_mesh, local_boundary
 
 # Parameters
 Lx, Ly = 1.0, 2.0
-nx_global, ny_global = 9, 17  # Smaller for clearer visualization
+nx_global, ny_global = 33, 65 
 j = 1
 J = 4
 
@@ -99,11 +115,15 @@ total_frames = 130
 anim = animation.FuncAnimation(fig, animate, frames=total_frames, interval=100, repeat=True)
 
 # Save
-plots_dir = os.path.join('..', 'plots')
+plots_dir = os.path.join(project_root, 'plots')
 os.makedirs(plots_dir, exist_ok=True)
 output_path = os.path.join(plots_dir, 'mesh_construction.gif')
+
 print("Creating animation... (this may take a minute)")
-anim.save(output_path, writer='pillow', fps=10)
-print(f"Saved animation to {output_path}")
+try:
+    anim.save(output_path, writer='pillow', fps=10)
+    print(f"Saved animation to {output_path}")
+except Exception as e:
+    print(f"Error saving animation: {e}")
 
 plt.close()
