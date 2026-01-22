@@ -534,7 +534,7 @@ def Pi_operator(x: np.ndarray, nx: int, J: int) -> np.ndarray:
     """
     # For horizontal slab decomposition, interfaces are already shared
     # Each interface appears once in the skeleton, so Π is identity
-    return x.copy()
+    return x
 
 
 def g_vector(factorizations: list, bj_list: list, Bj_list: list, 
