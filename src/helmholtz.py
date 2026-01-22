@@ -46,6 +46,21 @@ def local_mesh(Lx: float, Ly: float,
     - Each subdomain has size (0, Lx) X (j*Ly/J, (j+1)*Ly/J)
     - We assume (ny - 1) is divisible by J
     """
+    if Lx <= 0 or Ly <= 0:
+        raise ValueError(f"Domain dimensions must be positive: Lx={Lx}, Ly={Ly}")
+    
+    if nx < 2 or ny < 2:
+        raise ValueError(f"Mesh must have at least 2 points: nx={nx}, ny={ny}")
+    
+    if j < 0 or j >= J:
+        raise ValueError(f"Subdomain index j={j} out of range [0, {J-1}]")
+    
+    if (ny - 1) % J != 0:
+        raise ValueError(
+            f"Cannot evenly divide mesh: ny-1={ny-1} not divisible by J={J}\n"
+            f"Try ny={J * ((ny-1)//J + 1) + 1} or J={J-1}"
+        )
+    
     # Number of y-intervals per subdomain
     ny_per_subdomain = (ny - 1) // J
     
