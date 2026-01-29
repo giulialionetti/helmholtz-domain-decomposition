@@ -26,12 +26,12 @@ if project_root not in sys.path:
 
 from src.seq.ddm_assembly import build_ddm_solver
 from src.seq.solver.GMRES import solve_ddm_gmres
-from src.common.helmholtz_param import HelmholtzParameters
+from src.common.helmholtz.helmholtz_param import HelmholtzParameters
 
 from src.common.ddm_operators import S_operator, Pi_operator, uj_solution
 from src.seq.solver.fixed_point import fixed_point_solver
 from src.common.mesh import mesh, boundary, plot_mesh
-from src.common.system_assembly import mass, stiffness, point_source
+from src.common.helmholtz.system_assembly import mass, stiffness, point_source
 
 # ============================== LOGGING & PLOTTING SETUP ===============================
 # Ensure imports work from project root (Path fix)

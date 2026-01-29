@@ -1,5 +1,9 @@
-from math import pi
+"""
+Basic routines used for system assembly for the 2D Helmholtz problem.
+These routines are used both in the sequential and in the parallel setting
+"""
 
+from math import pi
 import numpy as np
 na = np.newaxis
 import numpy.linalg as la
@@ -7,7 +11,15 @@ from scipy.sparse import csr_matrix
 
 from src.common.mesh import get_area
 
+
 def mass(vtx, elt):
+    """
+    Builds the mass matrix of the discretized 2d Helmholtz problem, 
+    given the vertices and the triangles
+    
+    :param vtx: vertices of the mesh
+    :param elt: triangles of the mesh
+    """
     nv = np.size(vtx, 0)
     d = np.size(elt, 1)
     areas = get_area(vtx, elt)
@@ -21,6 +33,13 @@ def mass(vtx, elt):
     return M
 
 def stiffness(vtx, elt):
+    """
+    Builds the stiffness matrix of the discretized 2d Helmholtz problem, 
+    given the vertices and the triangles
+    
+    :param vtx: vertices of the mesh
+    :param elt: triangles of the mesh
+    """
     nv = np.size(vtx, 0)
     d = np.size(elt, 1)
     areas = get_area(vtx, elt)
@@ -39,6 +58,9 @@ def stiffness(vtx, elt):
     return K
 
 def point_source(sp, k):    
+    """
+    Builds the right hand side for the linear of the discretized 2D Helmholtz problem 
+    """
     def ps(x):
         v = np.zeros(np.size(x,0), float)
         for s in sp:

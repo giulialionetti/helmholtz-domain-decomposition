@@ -1,11 +1,18 @@
+"""
+Functions related to the assembly of the Domain Decomposition Method in the sequential case
+"""
+
 import numpy as np
 from src.common.mesh import local_boundary, local_mesh
-from src.common.helmholtz_param import HelmholtzParameters
+from src.common.helmholtz.helmholtz_param import HelmholtzParameters
 from src.common.ddm_operators import (Bj_matrix, Cj_matrix, Aj_matrix, Tj_matrix,
                            Sj_factorization, bj_vector, g_vector)
 
 def build_ddm_solver(nx, ny, J, param : HelmholtzParameters):
-    """Build all DDM components"""
+    """
+    Builds all DDM components and aggregates them into lists to perform the Domain
+    Decomposition in a sequential setting
+    """
     factorizations = []
     Bj_list = []
     Cj_list = []
