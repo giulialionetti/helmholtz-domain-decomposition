@@ -11,7 +11,6 @@ import os
 import logging
 import sys
 
-# Ensure imports work from project root (Path fix)
 current_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = current_path = current_dir
 while not os.path.exists(os.path.join(project_root, 'src')):
@@ -25,6 +24,17 @@ if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
 
+from src.seq.ddm_assembly import build_ddm_solver
+from src.seq.solver.GMRES import solve_ddm_gmres
+from src.common.helmholtz_param import HelmholtzParameters
+
+from src.common.ddm_operators import S_operator, Pi_operator, uj_solution
+from src.seq.solver.fixed_point import fixed_point_solver
+from src.common.mesh import mesh, boundary, plot_mesh
+from src.common.system_assembly import mass, stiffness, point_source
+
+# ============================== LOGGING & PLOTTING SETUP ===============================
+# Ensure imports work from project root (Path fix)
 log_file = "GMRES_results.log"
 
 logging.basicConfig(
@@ -36,86 +46,17 @@ logging.basicConfig(
 )
 
 
-
 logger = logging.getLogger(__name__)
-
-
-from src.helmholtz import (local_mesh, local_boundary, Bj_matrix, Cj_matrix,
-                           Aj_matrix, Tj_matrix, Sj_factorization, bj_vector,
-                           S_operator, Pi_operator, g_vector, 
-                           fixed_point_solver, uj_solution)
-from src.helmholtz_base import mesh, boundary, mass, stiffness, point_source, plot_mesh
 
 plots_dir = os.path.join(project_root, 'plots')
 os.makedirs(plots_dir, exist_ok=True)
 
 logger.info(f"Logging initialized. Output will be saved to {log_file}")
 
-# Common parameters
-Lx, Ly = 1.0, 2.0
-kappa = 16.0
-ns = 8
-np.random.seed(42)
-sp = [np.random.rand(3) * [Lx, Ly, 50.0] for _ in range(ns)]
 
-def build_ddm_solver(nx, ny, J):
-    """Build all DDM components"""
-    factorizations = []
-    Bj_list = []
-    Cj_list = []
-    Tj_list = []
-    bj_list = []
-    vtxj_list = []
-    eltj_list = []
-    
-    for j in range(J):
-        vtxj, eltj = local_mesh(Lx, Ly, nx, ny, j, J)
-        nx_local = nx
-        ny_local = len(np.unique(vtxj[:, 1]))
-        
-        beltj_phys, beltj_artf = local_boundary(nx_local, ny_local, j, J)
-        
-        Bj = Bj_matrix(nx_local, ny_local, j, J, beltj_artf)
-        Cj = Cj_matrix(nx, ny, j, J)
-        Aj = Aj_matrix(vtxj, eltj, beltj_phys, kappa)
-        Tj = Tj_matrix(vtxj, beltj_artf, Bj, kappa)
-        LU_j = Sj_factorization(Aj, Tj, Bj)
-        bj = bj_vector(vtxj, eltj, sp, kappa)
-        
-        factorizations.append(LU_j)
-        Bj_list.append(Bj)
-        Cj_list.append(Cj)
-        Tj_list.append(Tj)
-        bj_list.append(bj)
-        vtxj_list.append(vtxj)
-        eltj_list.append(eltj)
-    
-    g = g_vector(factorizations, bj_list, Bj_list, Cj_list, nx, J)
-    
-    return factorizations, Bj_list, Cj_list, Tj_list, bj_list, vtxj_list, eltj_list, g
+# ================================= PROBLEM PARAMETERS =================================
+params = HelmholtzParameters() 
 
-def solve_ddm_gmres(factorizations, Bj_list, Cj_list, Tj_list, g, nx, J):
-    """Solve DDM interface problem with GMRES"""
-    def S_op(x):
-        return S_operator(x, factorizations, Bj_list, Tj_list, Cj_list)
-    
-    def Pi_op(x):
-        return Pi_operator(x, nx, J)
-    
-    def matvec(x):
-        return x + Pi_op(S_op(x))
-    
-    n_skeleton = len(g)
-    A_op = spla.LinearOperator((n_skeleton, n_skeleton), matvec=matvec, dtype=complex)
-    
-    residuals = []
-    def callback(rk):
-        residuals.append(rk)
-    
-    x, info = spla.gmres(A_op, -g, rtol=1e-10, callback=callback, 
-                         callback_type='pr_norm', maxiter=500)
-    
-    return x, residuals, info, S_op, Pi_op
 
 logger.info("="*70)
 logger.info("Section 2.5 - Complete Implementation")
@@ -131,7 +72,7 @@ logger.info("-"*70)
 nx, ny, J = 33, 65, 4
 logger.info(f"Configuration: {nx}x{ny} mesh, {J} subdomains")
 
-components = build_ddm_solver(nx, ny, J)
+components = build_ddm_solver(nx, ny, J, params)
 factorizations, Bj_list, Cj_list, Tj_list, bj_list, vtxj_list, eltj_list, g = components
 
 # Fixed point solver
@@ -176,7 +117,7 @@ refinement_results = []
 for nx, ny in mesh_sizes:
     logger.info(f"  Mesh {nx}x{ny}")
     
-    components = build_ddm_solver(nx, ny, J)
+    components = build_ddm_solver(nx, ny, J, params)
     factorizations, Bj_list, Cj_list, Tj_list, bj_list, vtxj_list, eltj_list, g = components
     
     x, residuals, info, _, _ = solve_ddm_gmres(factorizations, Bj_list, Cj_list, Tj_list, g, nx, J)
@@ -205,7 +146,7 @@ for J in J_values:
     
     logger.info(f"  J={J} subdomains")
     
-    components = build_ddm_solver(nx, ny, J)
+    components = build_ddm_solver(nx, ny, J, params)
     factorizations, Bj_list, Cj_list, Tj_list, bj_list, vtxj_list, eltj_list, g = components
     
     x, residuals, info, _, _ = solve_ddm_gmres(factorizations, Bj_list, Cj_list, Tj_list, g, nx, J)
@@ -227,7 +168,7 @@ for nx, ny, J in configs:
     dofs_per_sub = nx * ((ny-1)//J + 1)
     logger.info(f"  J={J}, mesh {nx}x{ny}, ~{dofs_per_sub} DOFs/subdomain")
     
-    components = build_ddm_solver(nx, ny, J)
+    components = build_ddm_solver(nx, ny, J, params)
     factorizations, Bj_list, Cj_list, Tj_list, bj_list, vtxj_list, eltj_list, g = components
     
     x, residuals, info, _, _ = solve_ddm_gmres(factorizations, Bj_list, Cj_list, Tj_list, g, nx, J)
@@ -283,7 +224,7 @@ logger.info("-"*70)
 nx, ny, J = 33, 65, 4
 logger.info(f"Configuration: {nx}x{ny} mesh, {J} subdomains")
 
-components = build_ddm_solver(nx, ny, J)
+components = build_ddm_solver(nx, ny, J, params)
 factorizations, Bj_list, Cj_list, Tj_list, bj_list, vtxj_list, eltj_list, g = components
 
 x_solution, residuals, info, _, _ = solve_ddm_gmres(factorizations, Bj_list, Cj_list, Tj_list, g, nx, J)
@@ -349,7 +290,7 @@ logger.info(f"  Time: {time_ddm:.3f}s, Iterations: {len(residuals_ddm)}")
 
 # Full GMRES
 logger.info("Building and solving full problem with GMRES")
-vtx, elt = mesh(nx, ny, Lx, Ly)
+vtx, elt = mesh(nx, ny, params.Lx, params.Ly)
 
 # --- CORRECT FIX: Stack edges for mass matrix ---
 boundary_dict = boundary(nx, ny)
@@ -359,8 +300,8 @@ belt = np.vstack(list(boundary_dict.values()))
 M = mass(vtx, elt)
 Mb = mass(vtx, belt)
 K = stiffness(vtx, elt)
-A_full = K - kappa**2 * M - 1j * kappa * Mb
-b_full = M @ point_source(sp, kappa)(vtx)
+A_full = K - params.kappa**2 * M - 1j * params.kappa * Mb
+b_full = M @ point_source(params.sp, params.kappa)(vtx)
 
 start_full = time.time()
 residuals_full = []

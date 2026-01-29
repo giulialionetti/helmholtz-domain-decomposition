@@ -25,7 +25,7 @@ if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
 # --- 2. IMPORTS FROM SRC ---
-from src.helmholtz import local_mesh, local_boundary
+from src.common.mesh import local_mesh, local_boundary
 
 # --- 3. PARAMETERS ---
 Lx, Ly = 1.0, 2.0

@@ -31,10 +31,11 @@ logging.basicConfig(
 logger = logging.getLogger()
 
 try:
-    from src.helmholtz import (local_mesh, local_boundary, Bj_matrix, Cj_matrix,
+    from src.common.ddm_operators import (Bj_matrix, Cj_matrix,
                                Aj_matrix, Tj_matrix, Sj_factorization, bj_vector,
-                               S_operator, Pi_operator, g_vector, 
-                               fixed_point_solver, uj_solution)
+                               S_operator, Pi_operator, g_vector)
+    from src.common.mesh import local_boundary, local_mesh
+    from src.seq.solver.fixed_point import fixed_point_solver
 except ImportError as e:
     logger.error(f"Could not import src.helmholtz: {e}")
     sys.exit(1)

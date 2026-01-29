@@ -23,7 +23,7 @@ while not os.path.exists(os.path.join(project_root, 'src')):
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-from src.helmholtz import local_mesh, local_boundary
+from src.common.mesh import local_mesh, local_boundary
 
 # Parameters
 Lx, Ly = 1.0, 2.0
