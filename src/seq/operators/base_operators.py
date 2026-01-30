@@ -1,6 +1,7 @@
 import numpy as np
 from src.common.base_operators import (BlockDiagOperator, TransposedBlockDiagOperator, 
-                                       BlockQuasiDiagOperator, TransposedBlockQuasiDiagOperator)
+                                       BlockQuasiDiagOperator, TransposedBlockQuasiDiagOperator,
+                                       RowBlockOperator, TransposedRowBlockOperator)
 
 class FullBlockDiagOperator[T](BlockDiagOperator[T]):
     def __init__(self, num_blocks: int):
@@ -71,14 +72,14 @@ class TransposedFullBlockDiagOperator[T](TransposedBlockDiagOperator):
         return res
 
 
-class FullRowBlockDiagOperator[T](BlockQuasiDiagOperator[T]):
+class FullRowBlockQuasiDiagOperator[T](BlockQuasiDiagOperator[T]):
     def __init__(self, num_blocks: int):
-        super(FullRowBlockDiagOperator, self).__init__(num_blocks)
+        super(FullRowBlockQuasiDiagOperator, self).__init__(num_blocks)
         self._offsets = [0] * num_blocks
         self._block_list = [None] * num_blocks
         self._num_rows = 0
         self._num_cols = 0
-        self.T = TransposedFullRowBlockDiagOperator(self)
+        self.T = TransposedFullRowBlockQuasiDiagOperator(self)
 
     def setBlock(self, j: int, Bj: T, row_offs_from_jm1: int = 0, col_offs_from_jm1: int = -1):
         # Ignoring row_offs_from_jm1... it is only for rows blocks!
@@ -108,8 +109,8 @@ class FullRowBlockDiagOperator[T](BlockQuasiDiagOperator[T]):
         return res
         
 
-class TransposedFullRowBlockDiagOperator[T](TransposedBlockQuasiDiagOperator[T]):
-    def __init__(self, op: FullRowBlockDiagOperator[T]):
+class TransposedFullRowBlockQuasiDiagOperator[T](TransposedBlockQuasiDiagOperator[T]):
+    def __init__(self, op: FullRowBlockQuasiDiagOperator[T]):
         self._op = op
 
     def applyLocal(self, j: int, xj: np.ndarray) -> np.ndarray:
@@ -135,5 +136,46 @@ class TransposedFullRowBlockDiagOperator[T](TransposedBlockQuasiDiagOperator[T])
 
         return res
 
+class FullRowBlockOperator[T](RowBlockOperator[T]):
+    def __init__(self, num_blocks: int):
+        super(FullRowBlockOperator, self).__init__(num_blocks)
+        self._block_list = [None] * num_blocks
+        self._num_rows = 0
+        self._num_cols = 0
+        self.T = TransposedFullRowBlockOperator(self)
+
+    def setBlock(self, j: int, Bj: T):
+        # Ignoring row_offs_from_jm1... it is only for rows blocks!
+        self._block_list[j] = Bj                                # type: ignore
+        self._num_rows = Bj.shape[0]                           # type: ignore
+        self._num_cols = Bj.shape[1]                           # type: ignore
+
+    def applyLocal(self, j: int, xj: np.ndarray) -> np.ndarray:
+        return self._block_list[j] @ xj
+    
+    def applyGlobal(self, x: np.ndarray) -> np.ndarray:
+        res = np.zeros(0)
         
+        for j in range(self._num_blocks):
+            pres = self._block_list[j] @ x
+            res = np.concatenate((res, pres))    # type: ignore
+
+        return res
+
+class TransposedFullRowBlockOperator[T](TransposedRowBlockOperator[T]):
+    def __init__(self, op: FullRowBlockOperator[T]):
+        self._op = op
+
+    def applyLocal(self, j: int, xj: np.ndarray) -> np.ndarray:
+        return self._op._block_list[j].T @ xj
+    
+    def applyGlobal(self, x: np.ndarray) -> np.ndarray:
+        res = np.zeros(self._op._block_list[0].T.shape[0])
+        
+        cumulative_rows = 0
+        for j in range(self._op._num_blocks):
+            res += self._op._block_list[j].T @ x[cumulative_rows:cumulative_rows+self._op._block_list[j].T.shape[1]]
+            cumulative_rows += self._op._block_list[j].T.shape[1]
+
+        return res
         

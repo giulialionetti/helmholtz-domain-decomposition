@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.sparse import csr_matrix
 
-from src.seq.operators.base_operators import FullBlockDiagOperator
+from src.seq.operators.base_operators import FullRowBlockOperator
 
 def Cj_matrix(nx: int, ny: int, j: int, J: int) -> csr_matrix:
     """
@@ -56,3 +56,7 @@ def Cj_matrix(nx: int, ny: int, j: int, J: int) -> csr_matrix:
         Cj = csr_matrix((0, n_interface_total))
         
     return Cj
+
+class QOperator[T](FullRowBlockOperator[T]):
+    def __init__(self, num_blocks: int):
+        super(QOperator, self).__init__(num_blocks)

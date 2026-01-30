@@ -13,7 +13,7 @@ if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
 import numpy as np
-from src.seq.operators.base_operators import FullRowBlockDiagOperator
+from src.seq.operators.base_operators import FullRowBlockOperator
 
 import numpy as np
 
@@ -23,27 +23,27 @@ import numpy as np
 
 def main():
     B0 = np.array([
-        [ 1,  2,  3,  4],
-        [ 5,  6,  7,  8],
-        [ 9, 10, 11, 12]
+        [ 1,  2,  3,  4,  0,  0,  0,  0],
+        [ 5,  6,  7,  8,  0,  0,  0,  0],
+        [ 9, 10, 11, 12,  0,  0,  0,  0],
     ])
 
     B1 = np.array([
-        [13, 14, 15, 16],
-        [17, 18, 19, 20],
-        [21, 22, 23, 24]
+        [ 0,  0, 13, 14, 15, 16,  0,  0],
+        [ 0,  0, 17, 18, 19, 20,  0,  0],
+        [ 0,  0, 21, 22, 23, 24,  0,  0],
     ])
 
     B2 = np.array([
-        [25, 26, 27, 28],
-        [29, 30, 31, 32],
-        [33, 34, 35, 36]
+        [ 0,  0,  0,  0, 25, 26, 27, 28],
+        [ 0,  0,  0,  0, 29, 30, 31, 32],
+        [ 0,  0,  0,  0, 33, 34, 35, 36],
     ])
 
-    Aop = FullRowBlockDiagOperator(num_blocks=3)
-    Aop.setBlock(0, B0, col_offs_from_jm1=0)
-    Aop.setBlock(1, B1, col_offs_from_jm1=-2)
-    Aop.setBlock(2, B2, col_offs_from_jm1=-2)
+    Aop = FullRowBlockOperator(num_blocks=3)
+    Aop.setBlock(0, B0)
+    Aop.setBlock(1, B1)
+    Aop.setBlock(2, B2)
 
     # Matrice esplicita (9 x 8)
     A = np.array([

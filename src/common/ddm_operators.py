@@ -10,6 +10,8 @@ from src.seq.operators.s_operator import SFactorization
 from src.seq.operators.t_operator import TOperator
 from src.seq.operators.b_operator import BOperator
 from src.seq.operators.a_operator import AOperator
+from src.seq.operators.c_operator import QOperator
+from src.seq.operators.pi_operator import PiOperator
 
 
 # class FullVector(BlockVector):
@@ -60,65 +62,6 @@ from src.seq.operators.a_operator import AOperator
 
         
 
-def Rj_matrix(nx: int, ny: int, j: int, J: int) -> csr_matrix:
-    r"""
-    Construct local restriction matrix Rj.
-    
-    Rj maps global degrees of freedom V(Ω) to local degrees of freedom V(Ωj).
-    
-    Parameters:
-    -----------
-    nx, ny : int
-        Number of points for GLOBAL mesh
-    j : int
-        Subdomain index
-    J : int
-        Total number of subdomains
-    
-    Returns:
-    --------
-    Rj : sparse matrix
-        Restriction matrix of size |V(Ωj)| X |V(Ω)|
-    
-    Notes:
-    ------
-    - This is a boolean matrix (0s and 1s)
-    - Each row has exactly one 1, selecting one global DOF
-    - The ordering follows the local mesh numbering
-    """
-    # Number of y-intervals per subdomain
-    ny_per_subdomain = (ny - 1) // J
-    
-    # Local number of points
-    ny_local = ny_per_subdomain + 1
-    nv_local = nx * ny_local
-    nv_global = nx * ny
-    
-    # Starting y-index for subdomain j in global mesh
-    y_start = j * ny_per_subdomain
-    
-    # Build mapping from local to global indices
-    row_indices = []
-    col_indices = []
-    
-    for iy_local in range(ny_local):
-        iy_global = y_start + iy_local
-        for ix in range(nx):
-            local_idx = ix + iy_local * nx
-            global_idx = ix + iy_global * nx
-            row_indices.append(local_idx)
-            col_indices.append(global_idx)
-    
-    # Create sparse restriction matrix
-    data = np.ones(len(row_indices))
-    Rj = csr_matrix((data, (row_indices, col_indices)), shape=(nv_local, nv_global))
-    
-    return Rj
-    
-
-
-
-
 def bj_vector(vtxj: np.ndarray, eltj: np.ndarray, 
               sp: list, kappa: float) -> np.ndarray:
     """
@@ -152,32 +95,10 @@ def bj_vector(vtxj: np.ndarray, eltj: np.ndarray,
     return bj
 
 
-def Pi_operator(x: np.ndarray, nx: int, J: int) -> np.ndarray:
-    """
-    Apply the exchange operator Π to vector x.
-    
-    For every interface k:
-    - Swaps Block 2k (Side 0) with Block 2k+1 (Side 1).
-    """
-    Px = np.zeros_like(x)
-    n_interfaces = J - 1
-    
-    for k in range(n_interfaces):
-        # Indices for Side 0 (belonging to subdomain below)
-        idx_side0 = slice((2 * k) * nx, (2 * k + 1) * nx)
-        
-        # Indices for Side 1 (belonging to subdomain above)
-        idx_side1 = slice((2 * k + 1) * nx, (2 * k + 2) * nx)
-        
-        # Perform Swap
-        Px[idx_side0] = x[idx_side1]
-        Px[idx_side1] = x[idx_side0]
-        
-    return Px
 
 
 def g_vector(s_factorization: SFactorization, bj_list: list, B : BOperator, 
-             Cj_list: list, nx: int, J: int) -> np.ndarray:
+             Q: QOperator, nx: int, J: int) -> np.ndarray:
     """
     Construct the global right-hand side vector 'g' for the interface linear system.
 
@@ -233,10 +154,10 @@ def g_vector(s_factorization: SFactorization, bj_list: list, B : BOperator,
         interface_vals = B.applyLocal(j,uj)
         
         # 3. Map local boundary values to global position
-        g_temp += Cj_list[j].T @ interface_vals
+        g_temp += Q.T.applyLocal(j, interface_vals)
     
     # 4. Apply exchange operator to finalize g
-    g = Pi_operator(g_temp, nx, J)
+    g = PiOperator(J, nx).apply(g_temp)
     
     return g
 

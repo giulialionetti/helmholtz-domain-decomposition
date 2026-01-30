@@ -5,6 +5,7 @@ import scipy.sparse.linalg as spla
 from src.seq.operators.base_operators import FullBlockDiagOperator
 from src.seq.operators.t_operator import TOperator
 from src.seq.operators.b_operator import BOperator
+from src.seq.operators.c_operator import QOperator
 
 def Sj_factorization(Aj: csr_matrix, Tj: csr_matrix, Bj: csr_matrix):
     """
@@ -56,7 +57,7 @@ class SFactorization[T](FullBlockDiagOperator[T]):
         return res
 
 def S_operator(x: np.ndarray, s_factorization: SFactorization, B: BOperator, 
-               T: TOperator, Cj_list: list) -> np.ndarray:
+               T: TOperator, Q: QOperator) -> np.ndarray:
     """
     Apply the global Schur complement operator S to vector x.
     
@@ -86,7 +87,7 @@ def S_operator(x: np.ndarray, s_factorization: SFactorization, B: BOperator,
     
     for j in range(J):
         # Extract local interface portion: xj = Cj @ x
-        xj = Cj_list[j] @ x
+        xj = Q.applyLocal(j, x)
         
         # Compute: Tj @ xj
         rhs = T.applyLocal(j, xj)
@@ -98,7 +99,7 @@ def S_operator(x: np.ndarray, s_factorization: SFactorization, B: BOperator,
         Sj_xj = B.applyLocal(j, local_sol)
         
         # Assemble back to global skeleton: C*j @ Sj_xj
-        Sx += Cj_list[j].T @ Sj_xj
+        Sx += Q.T.applyLocal(j,Sj_xj)
     
     return Sx
 

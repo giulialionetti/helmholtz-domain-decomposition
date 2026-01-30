@@ -33,12 +33,13 @@ logger = logging.getLogger()
 
 try:
     from src.common.ddm_operators import (
-                               bj_vector, Pi_operator, g_vector)
+                               bj_vector, g_vector)
     from src.seq.operators.s_operator import SFactorization, Sj_factorization, SOperator, S_operator
     from src.seq.operators.t_operator import TOperator, Tj_matrix
     from src.seq.operators.b_operator import BOperator, Bj_matrix
     from src.seq.operators.a_operator import AOperator, Aj_matrix
-    from src.seq.operators.c_operator import            Cj_matrix
+    from src.seq.operators.c_operator import QOperator, Cj_matrix
+    from src.seq.operators.pi_operator import PiOperator
     from src.common.mesh import local_boundary, local_mesh
     from src.seq.linear_solver.fixed_point import fixed_point_solver
 except ImportError as e:
@@ -60,7 +61,7 @@ def run_convergence_test():
 
     s_factorization = SFactorization(J)
     B = BOperator[csr_matrix](J)
-    Cj_list = []
+    Q = QOperator[csr_matrix](J)
     T = TOperator[csr_matrix](J)
     bj_list = []
     
@@ -82,12 +83,13 @@ def run_convergence_test():
         
         s_factorization.setBlock(j, LU)
         B.setBlock(j, Bj)
-        Cj_list.append(Cj)
+        Q.setBlock(j, Cj)
+
         T.setBlock(j, Tj)
         bj_list.append(bj)
 
    
-    g = g_vector(s_factorization, bj_list, B, Cj_list, nx_global, J)
+    g = g_vector(s_factorization, bj_list, B, Q, nx_global, J)
     expected_size = 2 * (J - 1) * nx_global
     if g.shape[0] != expected_size:
         logger.error(f"Size Mismatch! Got {g.shape[0]}, Expected {expected_size}")
@@ -95,10 +97,9 @@ def run_convergence_test():
 
    
     def S_op(x):
-        return S_operator(x, s_factorization, B, T, Cj_list)
+        return S_operator(x, s_factorization, B, T, Q)
 
-    def Pi_op(x):
-        return Pi_operator(x, nx_global, J)
+    Pi_op = PiOperator(J, nx_global)
 
     omega = 0.1
     max_iter = 400

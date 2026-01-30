@@ -48,6 +48,22 @@ class TransposedBlockQuasiDiagOperator[T]:
                                   "rather having a class Vector who is inherited by" \
                                   "SparseVector and FullVector or something like that")
 
+class RowBlockOperator[T](BlockOperator[T]):
+    def __init__(self, num_blocks: int):
+        self._num_blocks = num_blocks
+
+    def setBlock(self, j: int, Bj: T):
+        raise NotImplementedError("This is an abstract method")
+    
+class TransposedRowBlockOperator[T]:
+    def applyLocal(self, j: int, xj: np.ndarray) -> np.ndarray:
+        raise NotImplementedError("This is an abstract method")
+        
+    def applyGlobal(self, x: np.ndarray) -> np.ndarray:
+        raise NotImplementedError("This method SHOULD NOT be implemented like this, " \
+                                  "rather having a class Vector who is inherited by" \
+                                  "SparseVector and FullVector or something like that")
+
 
 class BlockVector:
     def __init__(self, rows: int):
