@@ -35,7 +35,7 @@ try:
                                Aj_matrix, Tj_matrix, Sj_factorization, bj_vector,
                                S_operator, Pi_operator, g_vector)
     from src.common.mesh import local_boundary, local_mesh
-    from src.seq.solver.fixed_point import fixed_point_solver
+    from src.seq.linear_solver.fixed_point import fixed_point_solver
 except ImportError as e:
     logger.error(f"Could not import src.helmholtz: {e}")
     sys.exit(1)

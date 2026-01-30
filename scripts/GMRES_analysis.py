@@ -25,11 +25,12 @@ if project_root not in sys.path:
 
 
 from src.seq.ddm_assembly import build_ddm_solver
-from src.seq.solver.GMRES import solve_ddm_gmres
+# from src.seq.linear_solver.GMRES import solve_ddm_gmres
+from src.seq.helmholtz_solver import HelmholtzSolver
 from src.common.helmholtz.helmholtz_param import HelmholtzParameters
 
 from src.common.ddm_operators import S_operator, Pi_operator, uj_solution
-from src.seq.solver.fixed_point import fixed_point_solver
+from src.seq.linear_solver.fixed_point import fixed_point_solver
 from src.common.mesh import mesh, boundary, plot_mesh
 from src.common.helmholtz.system_assembly import mass, stiffness, point_source
 
@@ -72,8 +73,15 @@ logger.info("-"*70)
 nx, ny, J = 33, 65, 4
 logger.info(f"Configuration: {nx}x{ny} mesh, {J} subdomains")
 
-components = build_ddm_solver(nx, ny, J, params)
+solver12 = HelmholtzSolver(params, nx, ny, J)
+
+solver12.assembly()
+components = solver12.getComponents()
 factorizations, Bj_list, Cj_list, Tj_list, bj_list, vtxj_list, eltj_list, g = components
+
+
+# components = build_ddm_solver(nx, ny, J, params)
+# factorizations, Bj_list, Cj_list, Tj_list, bj_list, vtxj_list, eltj_list, g = components
 
 # Fixed point solver
 logger.info("Running fixed-point solver")
@@ -88,7 +96,7 @@ logger.info(f"  Iterations: {len(residuals_fp)}, Final residual: {residuals_fp[-
 
 # GMRES solver
 logger.info("Running GMRES solver")
-x_gmres, residuals_gmres, info, _, _ = solve_ddm_gmres(factorizations, Bj_list, Cj_list, Tj_list, g, nx, J)
+x_gmres, residuals_gmres, info, _, _ = solver12.solve()
 logger.info(f"  Iterations: {len(residuals_gmres)}, Final residual: {residuals_gmres[-1]:.6e}")
 
 # Plot comparison
@@ -117,10 +125,16 @@ refinement_results = []
 for nx, ny in mesh_sizes:
     logger.info(f"  Mesh {nx}x{ny}")
     
-    components = build_ddm_solver(nx, ny, J, params)
+    solver4 = HelmholtzSolver(params, nx,ny,J)
+
+    solver4.assembly()
+    components = solver4.getComponents()
     factorizations, Bj_list, Cj_list, Tj_list, bj_list, vtxj_list, eltj_list, g = components
+
+    # components = build_ddm_solver(nx, ny, J, params)
+    # factorizations, Bj_list, Cj_list, Tj_list, bj_list, vtxj_list, eltj_list, g = components
     
-    x, residuals, info, _, _ = solve_ddm_gmres(factorizations, Bj_list, Cj_list, Tj_list, g, nx, J)
+    x, residuals, info, _, _ = solver4.solve()
     
     logger.info(f"    DOFs: {nx * ny}, Iterations: {len(residuals)}")
     
@@ -146,10 +160,16 @@ for J in J_values:
     
     logger.info(f"  J={J} subdomains")
     
-    components = build_ddm_solver(nx, ny, J, params)
+    solver5_1 = HelmholtzSolver(params, nx, ny, J)
+
+    solver5_1.assembly()
+    components = solver5_1.getComponents()
     factorizations, Bj_list, Cj_list, Tj_list, bj_list, vtxj_list, eltj_list, g = components
+
+    # components = build_ddm_solver(nx, ny, J, params)
+    # factorizations, Bj_list, Cj_list, Tj_list, bj_list, vtxj_list, eltj_list, g = components
     
-    x, residuals, info, _, _ = solve_ddm_gmres(factorizations, Bj_list, Cj_list, Tj_list, g, nx, J)
+    x, residuals, info, _, _ = solver5_1.solve()
     
     logger.info(f"    DOFs/subdomain: {nx * ((ny-1)//J + 1)}, Iterations: {len(residuals)}")
     
@@ -168,10 +188,16 @@ for nx, ny, J in configs:
     dofs_per_sub = nx * ((ny-1)//J + 1)
     logger.info(f"  J={J}, mesh {nx}x{ny}, ~{dofs_per_sub} DOFs/subdomain")
     
-    components = build_ddm_solver(nx, ny, J, params)
+    solver5_2 = HelmholtzSolver(params, nx, ny, J)
+
+    solver5_2.assembly()
+    components = solver5_2.getComponents()
     factorizations, Bj_list, Cj_list, Tj_list, bj_list, vtxj_list, eltj_list, g = components
+
+    # components = build_ddm_solver(nx, ny, J, params)
+    # factorizations, Bj_list, Cj_list, Tj_list, bj_list, vtxj_list, eltj_list, g = components
     
-    x, residuals, info, _, _ = solve_ddm_gmres(factorizations, Bj_list, Cj_list, Tj_list, g, nx, J)
+    x, residuals, info, _, _ = solver5_2.solve()
     
     logger.info(f"    Iterations: {len(residuals)}")
     
@@ -224,10 +250,16 @@ logger.info("-"*70)
 nx, ny, J = 33, 65, 4
 logger.info(f"Configuration: {nx}x{ny} mesh, {J} subdomains")
 
-components = build_ddm_solver(nx, ny, J, params)
+solver6 = HelmholtzSolver(params, nx, ny, J)
+
+solver6.assembly()
+components = solver6.getComponents()
 factorizations, Bj_list, Cj_list, Tj_list, bj_list, vtxj_list, eltj_list, g = components
 
-x_solution, residuals, info, _, _ = solve_ddm_gmres(factorizations, Bj_list, Cj_list, Tj_list, g, nx, J)
+# components = build_ddm_solver(nx, ny, J, params)
+# factorizations, Bj_list, Cj_list, Tj_list, bj_list, vtxj_list, eltj_list, g = components
+
+x_solution, residuals, info, _, _ = solver6.solve()
 
 # Compute local solutions
 uj_list = []
@@ -284,7 +316,8 @@ logger.info("-"*70)
 # DDM-GMRES timing
 logger.info("Timing DDM-GMRES")
 start_ddm = time.time()
-x_ddm, residuals_ddm, info_ddm, _, _ = solve_ddm_gmres(factorizations, Bj_list, Cj_list, Tj_list, g, nx, J)
+# x_ddm, residuals_ddm, info_ddm, _, _ = solve_ddm_gmres(factorizations, Bj_list, Cj_list, Tj_list, g, nx, J)
+x_ddm, residuals_ddm, info_ddm, _, _ = solver6.solve()
 time_ddm = time.time() - start_ddm
 logger.info(f"  Time: {time_ddm:.3f}s, Iterations: {len(residuals_ddm)}")
 
