@@ -5,8 +5,11 @@ Functions related to the assembly of the Domain Decomposition Method in the sequ
 import numpy as np
 from src.common.mesh import local_boundary, local_mesh
 from src.common.helmholtz.helmholtz_param import HelmholtzParameters
-from src.common.ddm_operators import (Bj_matrix, Cj_matrix, Aj_matrix, Tj_matrix,
-                           Sj_factorization, bj_vector, g_vector)
+from src.common.ddm_operators import (Cj_matrix, bj_vector, g_vector)
+from src.seq.operators.a_operator import AOperator, Aj_matrix
+from src.seq.operators.b_operator import BOperator, Bj_matrix
+from src.seq.operators.t_operator import TOperator, Tj_matrix
+from src.seq.operators.s_operator import SFactorization, Sj_factorization
 
 def build_ddm_solver(nx, ny, J, param : HelmholtzParameters):
     """

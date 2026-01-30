@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import numpy as np
+from scipy.sparse import csr_matrix
 import logging
 import sys
 import os
@@ -31,9 +32,13 @@ logging.basicConfig(
 logger = logging.getLogger()
 
 try:
-    from src.common.ddm_operators import (Bj_matrix, Cj_matrix,
-                               Aj_matrix, Tj_matrix, Sj_factorization, bj_vector,
-                               S_operator, Pi_operator, g_vector)
+    from src.common.ddm_operators import (
+                               bj_vector, Pi_operator, g_vector)
+    from src.seq.operators.s_operator import SFactorization, Sj_factorization, SOperator, S_operator
+    from src.seq.operators.t_operator import TOperator, Tj_matrix
+    from src.seq.operators.b_operator import BOperator, Bj_matrix
+    from src.seq.operators.a_operator import AOperator, Aj_matrix
+    from src.seq.operators.c_operator import            Cj_matrix
     from src.common.mesh import local_boundary, local_mesh
     from src.seq.linear_solver.fixed_point import fixed_point_solver
 except ImportError as e:
@@ -53,10 +58,10 @@ def run_convergence_test():
     logger.info(f" k={kappa}, Grid={nx_global}x{ny_global}")
     logger.info("="*60)
 
-    factorizations = []
-    Bj_list = []
+    s_factorization = SFactorization(J)
+    B = BOperator[csr_matrix](J)
     Cj_list = []
-    Tj_list = []
+    T = TOperator[csr_matrix](J)
     bj_list = []
     
     sp = [np.array([0.5, 1.0, 1.0])]
@@ -75,14 +80,14 @@ def run_convergence_test():
         LU = Sj_factorization(Aj, Tj, Bj)
         bj = bj_vector(vtxj, eltj, sp, kappa)
         
-        factorizations.append(LU)
-        Bj_list.append(Bj)
+        s_factorization.setBlock(j, LU)
+        B.setBlock(j, Bj)
         Cj_list.append(Cj)
-        Tj_list.append(Tj)
+        T.setBlock(j, Tj)
         bj_list.append(bj)
 
    
-    g = g_vector(factorizations, bj_list, Bj_list, Cj_list, nx_global, J)
+    g = g_vector(s_factorization, bj_list, B, Cj_list, nx_global, J)
     expected_size = 2 * (J - 1) * nx_global
     if g.shape[0] != expected_size:
         logger.error(f"Size Mismatch! Got {g.shape[0]}, Expected {expected_size}")
@@ -90,7 +95,7 @@ def run_convergence_test():
 
    
     def S_op(x):
-        return S_operator(x, factorizations, Bj_list, Tj_list, Cj_list)
+        return S_operator(x, s_factorization, B, T, Cj_list)
 
     def Pi_op(x):
         return Pi_operator(x, nx_global, J)
