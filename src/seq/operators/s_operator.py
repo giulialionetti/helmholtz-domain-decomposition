@@ -7,10 +7,29 @@ from src.seq.operators.base_operators import FullBlockDiagOperator
 from src.seq.operators.t_operator import FullTOperator
 from src.seq.operators.b_operator import FullBOperator
 from src.seq.operators.q_operator import FullQOperator
+from src.seq.operators.a_operator import FullAOperator
 
 class FullSFactorization[T](SFactorization[T], FullBlockDiagOperator[T]):
-    def __init__(self, num_blocks: int):
-        super(SFactorization, self).__init__(num_blocks=num_blocks)
+    def __init__(self, num_blocks: int, A: FullAOperator, T: FullTOperator, B: FullBOperator):
+        super(SFactorization, self).__init__(A=A, T=T, B=B, num_blocks=num_blocks)
+        self._A = A
+        self._T = T
+        self._B = B
+
+    def build(self):
+        for j in range(self._num_blocks):
+            # Construct modified local matrix: Aj - i * Bj^T @ Tj @ Bj
+            Aj = self._A.getBlock(j)
+            Bj = self._B.getBlock(j)
+            if Bj.shape[0] > 0: # If there are artificial interfaces        # type: ignore
+                Tj = self._T.getBlock(j)
+                modified_Aj = Aj - 1j * (Bj.T @ Tj @ Bj) 
+            else:
+                modified_Aj = Aj # No modification needed
+            
+            # LU factorization
+            self._block_list[j] = spla.splu(csc_matrix(modified_Aj))
+            
 
     def buildLocal(self, j: int, Aj: T, Tj: T, Bj: T):
         # Construct modified local matrix: Aj - i * Bj^T @ Tj @ Bj

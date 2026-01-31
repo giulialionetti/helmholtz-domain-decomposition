@@ -7,6 +7,10 @@ class FullMesh(Mesh):
 
         self._mesh_list = [(np.zeros(0), np.zeros(0))] * J
 
+    def getNyLocal(self, j: int):
+        vtxj = self._mesh_list[j][0]
+        return len(np.unique(vtxj[:, 1]))
+
     def getLocal(self, j: int):
         return self._mesh_list[j]
     
@@ -43,6 +47,13 @@ class FullBoundary(Boundary):
         self._mesh = mesh
 
     def getLocal(self, j: int):
+        """
+        Returns the boundaries for the subdomain j as a tuple: 
+            (boundary_phys, boundary_artefact)
+        
+        :param j: number of subdomain
+        :type j: int
+        """
         return self._boundary_list[j]
     
     def build(self):

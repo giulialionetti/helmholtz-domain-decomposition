@@ -42,7 +42,7 @@ try:
     from src.seq.operators.bv_operator import FullBVecOperator
 
     from src.seq.mesh.mesh import FullBoundary, FullMesh
-    from src.common.mesh import local_boundary, local_mesh
+    from src.common.helmholtz.helmholtz_param import HelmholtzParameters
     from src.seq.linear_solver.fixed_point import fixed_point_solver
 except ImportError as e:
     logger.error(f"Could not import in file {__file__}: {e}")
@@ -51,6 +51,9 @@ except ImportError as e:
 def run_convergence_test():
     Lx, Ly = 1.0, 2.0
     kappa = 16.0
+
+    sp = [np.array([0.5, 1.0, 1.0])]
+    params = HelmholtzParameters(Lx, Ly, kappa, sp=sp)
     
     # Mesh: ~10 points per wavelength (lambda ~ 0.4)
     nx_global = 33
@@ -64,35 +67,23 @@ def run_convergence_test():
     mesh = FullMesh(J, nx_global, ny_global, Lx, Ly)
     boundary = FullBoundary(J, nx_global, mesh)
 
-    s_factorization = FullSFactorization(J)
     B = FullBOperator[csr_matrix](J, mesh, boundary)
     Q = FullQOperator[csr_matrix](J, mesh)
-    T = FullTOperator[csr_matrix](J, mesh, boundary)
-    A = FullAOperator[csr_matrix](J, mesh, boundary)
-    BVec = FullBVecOperator[np.ndarray](J)
+    T = FullTOperator[csr_matrix](J, mesh, boundary, B, params)
+    A = FullAOperator[csr_matrix](J, mesh, boundary, params)
+    s_factorization = FullSFactorization(J, A, T, B)
+    BVec = FullBVecOperator[np.ndarray](J, mesh, params)
     
-    sp = [np.array([0.5, 1.0, 1.0])]
 
     mesh.build()
     boundary.build()
 
-
-    for j in range(J):
-        vtxj, eltj = mesh.getLocal(j)
-
-        nx_local = nx_global
-        ny_local = len(np.unique(vtxj[:, 1]))
-        beltj_phys, beltj_artf = boundary.getLocal(j)
-        
-        B.buildLocal(j, nx_local, ny_local, beltj_artf)
-        Q.buildLocal(j, nx_global, ny_global)
-        A.buildLocal(j, vtxj, eltj, beltj_phys, kappa)
-        T.buildLocal(j, vtxj, beltj_artf, B.getBlock(j), kappa)
-        
-        # LU = Sj_factorization(Aj, Tj, Bj)
-        s_factorization.buildLocal(j, A.getBlock(j), T.getBlock(j), B.getBlock(j))
-        BVec.buildLocal(j, vtxj, eltj, sp, kappa)
-
+    B.build()
+    Q.build()
+    A.build()
+    T.build()
+    s_factorization.build()
+    BVec.build()
    
     g = FullGVecOperator().applyGlobal(s_factorization, BVec, B, Q, nx_global, J)
     expected_size = 2 * (J - 1) * nx_global
@@ -101,10 +92,7 @@ def run_convergence_test():
         return
 
    
-    # def S_op(x):
-    #     return S_operator(x, s_factorization, B, T, Q)
     S = FullSOperator(J, s_factorization, B, T, Q)
-
     Pi_op = FullPiOperator(J, nx_global)
 
     omega = 0.1

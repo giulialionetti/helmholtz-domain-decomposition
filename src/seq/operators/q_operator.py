@@ -10,6 +10,54 @@ class FullQOperator[T](QOperator, FullRowBlockOperator[T]):
         super(FullQOperator, self).__init__(mesh=mesh, num_blocks=num_blocks)
         self._mesh = mesh
         
+    def build(self):
+        for j in range(self._num_blocks):
+            # Total global interface DOFs: (J-1) interfaces * 2 sides * nx points
+            nx_global = self._mesh.getNx()
+            ny_global = self._mesh.getNy()
+            n_interface_total = 2 * (self._num_blocks - 1) * nx_global
+            
+            row_indices = []
+            col_indices = []
+            current_row = 0
+            
+            # --- 1. Bottom Interface (if exists) ---
+            # This is Global Interface (j-1). We are on the top side of it.
+            if j > 0:
+                interface_idx = j - 1
+                # Block index for "Side 1" of interface_idx is: 2 * interface_idx + 1
+                global_start_idx = (2 * interface_idx + 1) * nx_global
+                
+                for i in range(nx_global):
+                    row_indices.append(current_row)
+                    col_indices.append(global_start_idx + i)
+                    current_row += 1
+            
+            # --- 2. Top Interface (if exists) ---
+            # This is Global Interface (j). We are on the bottom side of it.
+            if j < self._num_blocks - 1:
+                interface_idx = j
+                # Block index for "Side 0" of interface_idx is: 2 * interface_idx
+                global_start_idx = (2 * interface_idx) * nx_global
+                
+                for i in range(nx_global):
+                    row_indices.append(current_row)
+                    col_indices.append(global_start_idx + i)
+                    current_row += 1
+                    
+            n_local_interface = current_row
+            
+            # Create sparse restriction matrix
+            # Note: If a subdomain has no interfaces (J=1), this returns empty
+            if n_local_interface > 0:
+                data = np.ones(len(row_indices))
+                Cj = csr_matrix((data, (row_indices, col_indices)), 
+                                shape=(n_local_interface, n_interface_total))
+            else:
+                Cj = csr_matrix((0, n_interface_total))
+                
+            self._block_list[j] = Cj
+
 
     def buildLocal(self, j: int, nx: int, ny: int):
         """

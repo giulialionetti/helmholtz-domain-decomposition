@@ -12,6 +12,32 @@ class FullBOperator[T](BOperator, FullBlockDiagOperator[T]):
         self._mesh = mesh
         self._boundary = boundary
 
+    def build(self):
+        
+        for j in range(self._num_blocks):
+            nx_local = self._mesh.getNxLocal(j)
+            ny_local = self._mesh.getNyLocal(j)
+
+            nv_local = nx_local * ny_local
+            
+            beltj_artf = self._boundary.getLocal(j)[1]
+
+            # if len(beltj_artf) == 0:
+            #     return csr_matrix((0, nv_local))
+            
+            # Extract unique vertex indices on artificial interfaces
+            interface_vertices = np.unique(beltj_artf.flatten())
+            n_interface = len(interface_vertices)
+            
+            # Build restriction matrix
+            row_indices = np.arange(n_interface)
+            col_indices = interface_vertices
+            data = np.ones(n_interface)
+            
+            Bj = csr_matrix((data, (row_indices, col_indices)), shape=(n_interface, nv_local))
+            
+            self._block_list[j] = Bj
+
     def buildLocal(self, j: int, nx: int, ny: int, beltj_artf: np.ndarray):
         r"""
         Construct interface restriction matrix Bj.
@@ -36,8 +62,8 @@ class FullBOperator[T](BOperator, FullBlockDiagOperator[T]):
         """
         nv_local = nx * ny
         
-        if len(beltj_artf) == 0:
-            return csr_matrix((0, nv_local))
+        # if len(beltj_artf) == 0:
+        #     return csr_matrix((0, nv_local))
         
         # Extract unique vertex indices on artificial interfaces
         interface_vertices = np.unique(beltj_artf.flatten())

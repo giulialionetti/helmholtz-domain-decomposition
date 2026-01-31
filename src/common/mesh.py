@@ -27,6 +27,27 @@ class Mesh:
         self._Lx = Lx
         self._Ly = Ly
 
+    def getNx(self):
+        return self._nx
+    
+    def getNxLocal(self, j: int):
+        return self._nx
+    
+    def getNy(self):
+        return self._ny
+    
+    def getNyLocal(self, j: int):
+        raise NotImplementedError("This is an abstract class")
+    
+    def getLx(self):
+        return self._Lx
+    
+    def getLy(self):
+        return self._Ly
+    
+    def getNumDomains(self):
+        return self._num_domains
+
     def getLocal(self, j: int):
         raise NotImplementedError("This is an abstract class")
 
