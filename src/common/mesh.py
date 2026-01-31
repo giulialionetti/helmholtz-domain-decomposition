@@ -7,6 +7,43 @@ import matplotlib.tri as mtri
 
 na = np.newaxis
 
+class Mesh:
+    def __init__(self, J: int, nx: int, ny: int, Lx: float, Ly: float):
+        if Lx <= 0 or Ly <= 0:
+            raise ValueError(f"Domain dimensions must be positive: Lx={Lx}, Ly={Ly}")
+        
+        if nx < 2 or ny < 2:
+            raise ValueError(f"Mesh must have at least 2 points: nx={nx}, ny={ny}")
+        
+        if (ny - 1) % J != 0:
+            raise ValueError(
+                f"Cannot evenly divide mesh: ny-1={ny-1} not divisible by J={J}\n"
+                f"Try ny={J * ((ny-1)//J + 1) + 1} or J={J-1}"
+            )
+
+        self._num_domains = J
+        self._nx = nx
+        self._ny = ny
+        self._Lx = Lx
+        self._Ly = Ly
+
+    def getLocal(self, j: int):
+        raise NotImplementedError("This is an abstract class")
+
+    def build(self):
+        raise NotImplementedError("This is an abstract class")
+
+class Boundary:
+    def __init__(self, J: int, nx: int):
+        self._num_domains = J
+        self._nx = nx
+
+    def getLocal(self, j: int):
+        raise NotImplementedError("This is an abstract class")
+
+    def build(self):
+        raise NotImplementedError("This is an abstract class")
+
 # ============================= INTERNAL ROUTINES for MESH ==============================
 def mesh(nx,ny,Lx,Ly):
    i = np.arange(0,nx)[na,:] * np.ones((ny,1), np.int64)

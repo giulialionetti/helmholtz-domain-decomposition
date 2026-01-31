@@ -5,7 +5,7 @@ class PiOperator:
         self._J = J
         self._nx = nx
 
-    def apply(self, x: np.ndarray) -> np.ndarray:
+    def applyGlobal(self, x: np.ndarray) -> np.ndarray:
         """
         Apply the exchange operator Π to vector x.
         

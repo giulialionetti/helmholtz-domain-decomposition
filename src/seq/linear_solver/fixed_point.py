@@ -1,8 +1,9 @@
 import numpy as np
 
 from src.seq.operators.pi_operator import PiOperator
+from src.seq.operators.s_operator import SOperator
 
-def fixed_point_solver(g: np.ndarray, S_op, Pi_op : PiOperator, omega: float, 
+def fixed_point_solver(g: np.ndarray, S: SOperator, Pi_op : PiOperator, omega: float, 
                        max_iter: int = 1000, tol: float = 1e-10) -> tuple[np.ndarray, list, bool]:
     """
     Solve the DDM interface linear system using Richardson (Fixed-Point) iteration.
@@ -52,8 +53,8 @@ def fixed_point_solver(g: np.ndarray, S_op, Pi_op : PiOperator, omega: float,
     
     for _ in range(max_iter):
         # Apply the linear operator A = (I + Pi S)
-        Sx = S_op(x)
-        PSx = Pi_op.apply(Sx)
+        Sx = S.applyGlobal(x)
+        PSx = Pi_op.applyGlobal(Sx)
         
         # Calculate residual: r = Ax - b = (I + Pi S)x + g
         # Note: We are solving Ax = -g, so Ax + g = 0

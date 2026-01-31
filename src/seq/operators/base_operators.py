@@ -6,7 +6,7 @@ from src.common.base_operators import (BlockDiagOperator, TransposedBlockDiagOpe
 class FullBlockDiagOperator[T](BlockDiagOperator[T]):
     def __init__(self, num_blocks: int):
         super(FullBlockDiagOperator, self).__init__(num_blocks)
-        self._block_list = [np.zeros((0,0))] * self._num_blocks
+        self._block_list = [ None ] * self._num_blocks
         self._shapes = [(0, 0)] * self._num_blocks
         self._num_rows = 0
         self._num_cols = 0
@@ -21,6 +21,9 @@ class FullBlockDiagOperator[T](BlockDiagOperator[T]):
         self._shapes[j] = Bj.shape      # type: ignore
         self._num_rows += Bj.shape[0]   # type: ignore
         self._num_cols += Bj.shape[1]   # type: ignore
+
+    def getBlock(self, j: int) -> T:
+        return self._block_list[j]         # type: ignore
 
     def applyLocal(self, j: int, xj: np.ndarray) -> np.ndarray:
         return self._block_list[j] @ xj
@@ -45,12 +48,15 @@ class FullBlockDiagOperator[T](BlockDiagOperator[T]):
         return res
 
 
-class TransposedFullBlockDiagOperator[T](TransposedBlockDiagOperator):
+class TransposedFullBlockDiagOperator[T](TransposedBlockDiagOperator[T]):
     def __init__(self, op: FullBlockDiagOperator[T]):
         self._op = op
 
+    def getBlock(self, j: int) -> T:
+        return self._op.getBlock(j).T       # type: ignore
+
     def applyLocal(self, j: int, xj: np.ndarray) -> np.ndarray:
-        return self._op._block_list[j].T @ xj
+        return self._op._block_list[j].T @ xj   # type: ignore
     
     def applyGlobal(self, x: np.ndarray) -> np.ndarray:
         if x.shape[0] != self._op._num_rows:
@@ -81,6 +87,9 @@ class FullRowBlockQuasiDiagOperator[T](BlockQuasiDiagOperator[T]):
         self._num_cols = 0
         self.T = TransposedFullRowBlockQuasiDiagOperator(self)
 
+    def getBlock(self, j: int) -> T:
+        return self._block_list[j]       # type: ignore
+
     def setBlock(self, j: int, Bj: T, row_offs_from_jm1: int = 0, col_offs_from_jm1: int = -1):
         # Ignoring row_offs_from_jm1... it is only for rows blocks!
         if self._offsets[j] != 0:
@@ -102,8 +111,8 @@ class FullRowBlockQuasiDiagOperator[T](BlockQuasiDiagOperator[T]):
         print("\n\n")
         for j in range(self._num_blocks):
             cumulative_cols += self._offsets[j]
-            pres = self._block_list[j] @ x[cumulative_cols:cumulative_cols+self._block_list[j].shape[1]]
-            res = np.concatenate((res, pres))    # type: ignore
+            pres = self._block_list[j] @ x[cumulative_cols:cumulative_cols+self._block_list[j].shape[1]]  # type: ignore
+            res = np.concatenate((res, pres)) 
             cumulative_cols += self._block_list[j].shape[1]     # type: ignore
 
         return res
@@ -113,8 +122,11 @@ class TransposedFullRowBlockQuasiDiagOperator[T](TransposedBlockQuasiDiagOperato
     def __init__(self, op: FullRowBlockQuasiDiagOperator[T]):
         self._op = op
 
+    def getBlock(self, j: int) -> T:
+        return self._op.getBlock(j).T # type: ignore
+
     def applyLocal(self, j: int, xj: np.ndarray) -> np.ndarray:
-        return self._op._block_list[j].T @ xj
+        return self._op._block_list[j].T @ xj         # type: ignore
     
     def applyGlobal(self, x: np.ndarray) -> np.ndarray:
         res = np.zeros(0)
@@ -144,6 +156,9 @@ class FullRowBlockOperator[T](RowBlockOperator[T]):
         self._num_cols = 0
         self.T = TransposedFullRowBlockOperator(self)
 
+    def getBlock(self, j: int) -> T:
+        return self._block_list[j]      # type: ignore
+
     def setBlock(self, j: int, Bj: T):
         # Ignoring row_offs_from_jm1... it is only for rows blocks!
         self._block_list[j] = Bj                                # type: ignore
@@ -166,16 +181,19 @@ class TransposedFullRowBlockOperator[T](TransposedRowBlockOperator[T]):
     def __init__(self, op: FullRowBlockOperator[T]):
         self._op = op
 
+    def getBlock(self, j: int) -> T:
+        return self._op.getBlock(j).T      # type: ignore
+
     def applyLocal(self, j: int, xj: np.ndarray) -> np.ndarray:
-        return self._op._block_list[j].T @ xj
+        return self._op._block_list[j].T @ xj         # type: ignore
     
     def applyGlobal(self, x: np.ndarray) -> np.ndarray:
-        res = np.zeros(self._op._block_list[0].T.shape[0])
+        res = np.zeros(self._op._block_list[0].T.shape[0])       # type: ignore
         
         cumulative_rows = 0
         for j in range(self._op._num_blocks):
-            res += self._op._block_list[j].T @ x[cumulative_rows:cumulative_rows+self._op._block_list[j].T.shape[1]]
-            cumulative_rows += self._op._block_list[j].T.shape[1]
+            res += self._op._block_list[j].T @ x[cumulative_rows:cumulative_rows+self._op._block_list[j].T.shape[1]]        # type: ignore
+            cumulative_rows += self._op._block_list[j].T.shape[1]            # type: ignore
 
         return res
         
