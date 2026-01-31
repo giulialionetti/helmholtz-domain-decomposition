@@ -1,17 +1,18 @@
 import numpy as np
-from src.seq.operators.s_operator import SFactorization
-from src.seq.operators.b_operator import BOperator
-from src.seq.operators.c_operator import QOperator
-from src.seq.operators.pi_operator import PiOperator
-from src.seq.operators.bv_operator import BVecOperator
+from src.common.operators.operators import GVecOperator
+from src.seq.operators.s_operator import FullSFactorization
+from src.seq.operators.b_operator import FullBOperator
+from src.seq.operators.q_operator import FullQOperator
+from src.seq.operators.pi_operator import FullPiOperator
+from src.seq.operators.bv_operator import FullBVecOperator
 
 
-class GVecOperator[T]:
+class FullGVecOperator[T](GVecOperator):
     def __init__(self):
-        pass
+        super(FullGVecOperator, self).__init__()
 
-    def applyGlobal(self, s_factorization: SFactorization, BVec: BVecOperator, B : BOperator, 
-                    Q: QOperator, nx: int, J: int) -> np.ndarray:
+    def applyGlobal(self, s_factorization: FullSFactorization, BVec: FullBVecOperator, B : FullBOperator, 
+                    Q: FullQOperator, nx: int, J: int) -> np.ndarray:
         """
         Construct the global right-hand side vector 'g' for the interface linear system.
 
@@ -70,6 +71,6 @@ class GVecOperator[T]:
             g_temp += Q.T.applyLocal(j, interface_vals)
         
         # 4. Apply exchange operator to finalize g
-        g = PiOperator(J, nx).applyGlobal(g_temp)
+        g = FullPiOperator(J, nx).applyGlobal(g_temp)
         
         return g

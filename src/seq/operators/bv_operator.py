@@ -1,10 +1,11 @@
 import numpy as np
 from src.common.helmholtz.system_assembly import mass, point_source
 from src.seq.operators.base_operators import FullBlockDiagOperator
+from src.common.operators.operators import BVecOperator
 
-class BVecOperator[T](FullBlockDiagOperator[T]):
+class FullBVecOperator[T](BVecOperator, FullBlockDiagOperator[T]):
     def __init__(self, num_blocks: int):
-        super(BVecOperator, self).__init__(num_blocks)
+        super(BVecOperator, self).__init__(num_blocks=num_blocks)
     
     def buildLocal(self, j: int, vtxj: np.ndarray, eltj: np.ndarray, sp: list, kappa: float):
         """

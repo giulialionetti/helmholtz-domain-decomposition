@@ -10,7 +10,7 @@ from src.seq.operators.s_operator import SFactorization
 from src.seq.operators.t_operator import TOperator
 from src.seq.operators.b_operator import BOperator
 from src.seq.operators.a_operator import AOperator
-from src.seq.operators.c_operator import QOperator
+from src.seq.operators.q_operator import QOperator
 from src.seq.operators.pi_operator import PiOperator
 
 

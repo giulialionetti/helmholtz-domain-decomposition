@@ -32,14 +32,14 @@ logging.basicConfig(
 logger = logging.getLogger()
 
 try:
-    from src.seq.operators.s_operator import SFactorization, SOperator
-    from src.seq.operators.t_operator import TOperator, Tj_matrix
-    from src.seq.operators.b_operator import BOperator, Bj_matrix
-    from src.seq.operators.a_operator import AOperator, Aj_matrix
-    from src.seq.operators.c_operator import QOperator, Cj_matrix
-    from src.seq.operators.pi_operator import PiOperator
-    from src.seq.operators.g_operator import GVecOperator
-    from src.seq.operators.bv_operator import BVecOperator
+    from src.seq.operators.s_operator import FullSFactorization, FullSOperator
+    from src.seq.operators.t_operator import FullTOperator
+    from src.seq.operators.b_operator import FullBOperator
+    from src.seq.operators.a_operator import FullAOperator
+    from src.seq.operators.q_operator import FullQOperator
+    from src.seq.operators.pi_operator import FullPiOperator
+    from src.seq.operators.g_operator import FullGVecOperator
+    from src.seq.operators.bv_operator import FullBVecOperator
 
     from src.seq.mesh.mesh import FullBoundary, FullMesh
     from src.common.mesh import local_boundary, local_mesh
@@ -61,13 +61,15 @@ def run_convergence_test():
     logger.info(f" k={kappa}, Grid={nx_global}x{ny_global}")
     logger.info("="*60)
 
-    s_factorization = SFactorization(J)
-    B = BOperator[csr_matrix](J)
-    Q = QOperator[csr_matrix](J)
-    T = TOperator[csr_matrix](J)
-    BVec = BVecOperator[np.ndarray](J)
     mesh = FullMesh(J, nx_global, ny_global, Lx, Ly)
     boundary = FullBoundary(J, nx_global, mesh)
+
+    s_factorization = FullSFactorization(J)
+    B = FullBOperator[csr_matrix](J, mesh, boundary)
+    Q = FullQOperator[csr_matrix](J, mesh)
+    T = FullTOperator[csr_matrix](J, mesh, boundary)
+    A = FullAOperator[csr_matrix](J, mesh, boundary)
+    BVec = FullBVecOperator[np.ndarray](J)
     
     sp = [np.array([0.5, 1.0, 1.0])]
 
@@ -83,26 +85,16 @@ def run_convergence_test():
         beltj_phys, beltj_artf = boundary.getLocal(j)
         
         B.buildLocal(j, nx_local, ny_local, beltj_artf)
-        # Bj = Bj_matrix(nx_local, ny_local, j, J, beltj_artf)
-        # B.setBlock(j, Bj)
-        Cj = Cj_matrix(nx_global, ny_global, j, J)
-        Aj = Aj_matrix(vtxj, eltj, beltj_phys, kappa)
-        Tj = Tj_matrix(vtxj, beltj_artf, B.getBlock(j), kappa)
+        Q.buildLocal(j, nx_global, ny_global)
+        A.buildLocal(j, vtxj, eltj, beltj_phys, kappa)
+        T.buildLocal(j, vtxj, beltj_artf, B.getBlock(j), kappa)
         
         # LU = Sj_factorization(Aj, Tj, Bj)
-        s_factorization.buildLocal(j, Aj, Tj, B.getBlock(j))
-        # bj = bj_vector(vtxj, eltj, sp, kappa)
+        s_factorization.buildLocal(j, A.getBlock(j), T.getBlock(j), B.getBlock(j))
         BVec.buildLocal(j, vtxj, eltj, sp, kappa)
-        
-        # s_factorization.setBlock(j, LU)
-        # B.setBlock(j, Bj)
-        Q.setBlock(j, Cj)
-
-        T.setBlock(j, Tj)
-        # bj_list.append(bj)
 
    
-    g = GVecOperator().applyGlobal(s_factorization, BVec, B, Q, nx_global, J)
+    g = FullGVecOperator().applyGlobal(s_factorization, BVec, B, Q, nx_global, J)
     expected_size = 2 * (J - 1) * nx_global
     if g.shape[0] != expected_size:
         logger.error(f"Size Mismatch! Got {g.shape[0]}, Expected {expected_size}")
@@ -111,9 +103,9 @@ def run_convergence_test():
    
     # def S_op(x):
     #     return S_operator(x, s_factorization, B, T, Q)
-    S = SOperator(J, s_factorization, B, T, Q)
+    S = FullSOperator(J, s_factorization, B, T, Q)
 
-    Pi_op = PiOperator(J, nx_global)
+    Pi_op = FullPiOperator(J, nx_global)
 
     omega = 0.1
     max_iter = 400

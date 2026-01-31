@@ -2,43 +2,15 @@ import numpy as np
 from scipy.sparse import csr_matrix, csc_matrix
 import scipy.sparse.linalg as spla
 
+from src.common.operators.operators import SFactorization, SOperator
 from src.seq.operators.base_operators import FullBlockDiagOperator
-from src.seq.operators.t_operator import TOperator
-from src.seq.operators.b_operator import BOperator
-from src.seq.operators.c_operator import QOperator
+from src.seq.operators.t_operator import FullTOperator
+from src.seq.operators.b_operator import FullBOperator
+from src.seq.operators.q_operator import FullQOperator
 
-# def Sj_factorization(Aj: csr_matrix, Tj: csr_matrix, Bj: csr_matrix):
-#     """
-#     Factorize the local problem matrix Aj - iB*j Tj Bj.
-    
-#     Parameters:
-#     -----------
-#     Aj : sparse matrix
-#         Local problem matrix
-#     Tj : sparse matrix
-#         Transmission matrix
-#     Bj : sparse matrix
-#         Interface restriction matrix
-    
-#     Returns:
-#     --------
-#     LU : SuperLU object
-#         LU factorization for efficient solves
-#     """
-#     # Construct modified local matrix: Aj - i * Bj^T @ Tj @ Bj
-#     if Bj.shape[0] > 0: # If there are artificial interfaces        # type: ignore
-#         modified_Aj = Aj - 1j * (Bj.T @ Tj @ Bj) 
-#     else:
-#         modified_Aj = Aj # No modification needed
-    
-#     # LU factorization
-#     LU = spla.splu(csc_matrix(modified_Aj))
-    
-#     return LU
-
-class SFactorization[T](FullBlockDiagOperator[T]):
+class FullSFactorization[T](SFactorization[T], FullBlockDiagOperator[T]):
     def __init__(self, num_blocks: int):
-        super(SFactorization, self).__init__(num_blocks)
+        super(SFactorization, self).__init__(num_blocks=num_blocks)
 
     def buildLocal(self, j: int, Aj: T, Tj: T, Bj: T):
         # Construct modified local matrix: Aj - i * Bj^T @ Tj @ Bj
@@ -67,81 +39,11 @@ class SFactorization[T](FullBlockDiagOperator[T]):
             accumulate_cols += self._shapes[j][1]
         return res
 
-# def S_operator(x: np.ndarray, s_factorization: SFactorization, B: BOperator, 
-#                T: TOperator, Q: QOperator) -> np.ndarray:
-#     """
-#     Apply the global Schur complement operator S to vector x.
-    
-#     S is block diagonal: S = diag(S1, S2, ..., SJ)
-#     where Sj xj = Bj (Aj - iB*j Tj Bj)^(-1) B*j Tj xj
-    
-#     Parameters:
-#     -----------
-#     x : ndarray
-#         Global interface vector
-#     factorizations : list
-#         List of LU factorizations for each subdomain
-#     Bj_list : list
-#         List of Bj matrices
-#     Tj_list : list
-#         List of Tj matrices
-#     Cj_list : list
-#         List of Cj matrices
-    
-#     Returns:
-#     --------
-#     Sx : ndarray
-#         Result of S @ x
-#     """
-#     J = s_factorization.getNumBlocks()
-#     Sx = np.zeros_like(x)
-    
-#     for j in range(J):
-#         # Extract local interface portion: xj = Cj @ x
-#         xj = Q.applyLocal(j, x)
-        
-#         # Compute: Tj @ xj
-#         rhs = T.applyLocal(j, xj)
-        
-#         # Solve: (Aj - iB*j Tj Bj)^(-1) @ (B*j @ Tj @ xj)
-#         local_sol = s_factorization.applyLocal(j, B.T.applyLocal(j, rhs))
-        
-#         # Apply: Bj @ local_sol
-#         Sj_xj = B.applyLocal(j, local_sol)
-        
-#         # Assemble back to global skeleton: C*j @ Sj_xj
-#         Sx += Q.T.applyLocal(j,Sj_xj)
-    
-#     return Sx
 
-class SOperator[T](FullBlockDiagOperator[T]):
-    """
-    Apply the global Schur complement operator S to vector x.
-    
-    S is block diagonal: S = diag(S1, S2, ..., SJ)
-    where Sj xj = Bj (Aj - iB*j Tj Bj)^(-1) B*j Tj xj
-    
-    Parameters:
-    -----------
-    x : ndarray
-        Global interface vector
-    factorizations : list
-        List of LU factorizations for each subdomain
-    Bj_list : list
-        List of Bj matrices
-    Tj_list : list
-        List of Tj matrices
-    Cj_list : list
-        List of Cj matrices
-    
-    Returns:
-    --------
-    Sx : ndarray
-        Result of S @ x
-    """
-    def __init__(self, num_blocks: int, s_fact: SFactorization, B: BOperator, 
-                 T: TOperator, Q: QOperator):
-        super(SOperator, self).__init__(num_blocks)
+class FullSOperator[T](SOperator, FullBlockDiagOperator[T]):
+    def __init__(self, num_blocks: int, s_fact: FullSFactorization, B: FullBOperator, 
+                 T: FullTOperator, Q: FullQOperator):
+        super(SOperator, self).__init__(num_blocks=num_blocks)
         self._s_factorization = s_fact
         self._B = B
         self._T = T
@@ -150,6 +52,30 @@ class SOperator[T](FullBlockDiagOperator[T]):
         self.T = None
 
     def applyGlobal(self, x: np.ndarray) -> np.ndarray:
+        """
+        Apply the global Schur complement operator S to vector x.
+        
+        S is block diagonal: S = diag(S1, S2, ..., SJ)
+        where Sj xj = Bj (Aj - iB*j Tj Bj)^(-1) B*j Tj xj
+        
+        Parameters:
+        -----------
+        x : ndarray
+            Global interface vector
+        factorizations : list
+            List of LU factorizations for each subdomain
+        Bj_list : list
+            List of Bj matrices
+        Tj_list : list
+            List of Tj matrices
+        Cj_list : list
+            List of Cj matrices
+        
+        Returns:
+        --------
+        Sx : ndarray
+            Result of S @ x
+        """
         Sx = np.zeros_like(x)
         
         for j in range(self._num_blocks):

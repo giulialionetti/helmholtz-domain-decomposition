@@ -1,7 +1,9 @@
 import numpy as np
+from src.common.operators.operators import PiOperator
 
-class PiOperator:
+class FullPiOperator(PiOperator):
     def __init__(self, J: int, nx: int):
+        super(FullPiOperator, self).__init__()
         self._J = J
         self._nx = nx
 

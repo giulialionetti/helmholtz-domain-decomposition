@@ -1,10 +1,10 @@
 import numpy as np
-from src.common.base_operators import (BlockDiagOperator, TransposedBlockDiagOperator, 
+from src.common.operators.base_operators import (BlockDiagOperator, TransposedBlockDiagOperator, 
                                        BlockQuasiDiagOperator, TransposedBlockQuasiDiagOperator,
                                        RowBlockOperator, TransposedRowBlockOperator)
 
 class FullBlockDiagOperator[T](BlockDiagOperator[T]):
-    def __init__(self, num_blocks: int):
+    def __init__(self, *, num_blocks: int, **kwargs):
         super(FullBlockDiagOperator, self).__init__(num_blocks)
         self._block_list = [ None ] * self._num_blocks
         self._shapes = [(0, 0)] * self._num_blocks
@@ -149,8 +149,8 @@ class TransposedFullRowBlockQuasiDiagOperator[T](TransposedBlockQuasiDiagOperato
         return res
 
 class FullRowBlockOperator[T](RowBlockOperator[T]):
-    def __init__(self, num_blocks: int):
-        super(FullRowBlockOperator, self).__init__(num_blocks)
+    def __init__(self, *, num_blocks: int, **kwargs):
+        super(FullRowBlockOperator, self).__init__(num_blocks, **kwargs)
         self._block_list = [None] * num_blocks
         self._num_rows = 0
         self._num_cols = 0

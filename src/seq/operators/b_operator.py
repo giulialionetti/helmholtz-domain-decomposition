@@ -1,11 +1,16 @@
 import numpy as np
 from scipy.sparse import csr_matrix
+
 from src.seq.operators.base_operators import FullBlockDiagOperator
+from src.seq.mesh.mesh import FullMesh, FullBoundary
+from src.common.operators.operators import BOperator
 
 
-class BOperator[T](FullBlockDiagOperator[T]):
-    def __init__(self, J: int):
-        super(BOperator, self).__init__(J)
+class FullBOperator[T](BOperator, FullBlockDiagOperator[T]):
+    def __init__(self, num_blocks: int, mesh: FullMesh, boundary: FullBoundary):
+        super(BOperator, self).__init__(mesh=mesh, boundary=boundary, num_blocks=num_blocks)
+        self._mesh = mesh
+        self._boundary = boundary
 
     def buildLocal(self, j: int, nx: int, ny: int, beltj_artf: np.ndarray):
         r"""
