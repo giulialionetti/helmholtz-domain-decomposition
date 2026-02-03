@@ -29,7 +29,8 @@ class FullTOperator[T](TOperator, FullBlockDiagOperator):
             Bj = self._B.getBlock(j)
             Tj = self._params.kappa * (Bj @ M_interface @ Bj.T)
             
-            self._block_list[j] = csr_matrix(Tj)
+            # self._block_list[j] = csr_matrix(Tj)
+            self.setBlock(j, csr_matrix(Tj))
 
     def buildLocal(self, j: int, vtxj: np.ndarray, beltj_artf: np.ndarray, 
                    Bj: csr_matrix, kappa: float):
@@ -43,4 +44,9 @@ class FullTOperator[T](TOperator, FullBlockDiagOperator):
         # Restrict to interface DOFs: Tj = κ * Bj @ M_interface @ Bj^T
         Tj = kappa * (Bj @ M_interface @ Bj.T)
         
-        self._block_list[j] = csr_matrix(Tj)
+        # self._block_list[j] = csr_matrix(Tj)
+        self.setBlock(j, csr_matrix(Tj))
+
+    
+    def applyGlobalNorm(self, v):
+        return np.linalg.norm(np.dot(self.applyGlobal(v), v))

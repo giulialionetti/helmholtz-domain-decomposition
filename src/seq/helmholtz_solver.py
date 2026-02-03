@@ -1,4 +1,5 @@
 import scipy.sparse.linalg as spla
+from scipy.sparse import csr_matrix
 import numpy as np
 import os
 import sys
@@ -15,22 +16,23 @@ while not os.path.exists(os.path.join(project_root, 'src')):
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-from src.common.mesh import local_boundary, local_mesh
+from src.seq.mesh.mesh import FullBoundary, FullMesh
 from src.common.helmholtz.helmholtz_param import HelmholtzParameters
-from src.common.ddm_operators import (Cj_matrix, bj_vector, g_vector)
-from src.seq.operators.b_operator import BOperator, Bj_matrix
-from src.seq.operators.a_operator import AOperator, Aj_matrix
-from src.seq.operators.t_operator import TOperator, Tj_matrix
-from src.seq.operators.s_operator import SFactorization, Sj_factorization
+from src.seq.operators.b_operator import FullBOperator
+from src.seq.operators.a_operator import FullAOperator
+from src.seq.operators.t_operator import FullTOperator
+from src.seq.operators.q_operator import FullQOperator
+from src.seq.operators.s_operator import FullSFactorization, FullSOperator
+from src.seq.operators.pi_operator import FullPiOperator
+from src.seq.operators.bv_operator import FullBVecOperator
+from src.seq.operators.g_operator import FullGVecOperator
 from src.common.helmholtz.helmholtz_param import HelmholtzParameters
-from src.common.ddm_operators import Pi_operator
-from src.seq.operators.s_operator import S_operator
 
 class HelmholtzSolver:
-    def __init__(self, param : HelmholtzParameters, nx, ny, J):
-        self._param = param
-        self._nx = nx
-        self._ny = ny
+    def __init__(self, params : HelmholtzParameters, J: int):
+        self._params = params
+        # self._nx = nx
+        # self._ny = ny
         self._J = J
 
         self._x = 0
@@ -41,49 +43,76 @@ class HelmholtzSolver:
         Builds all DDM components and aggregates them into lists to perform the Domain
         Decomposition in a sequential setting
         """
-        self._factorizations = []
-        self._Bj_list = []
-        self._Cj_list = []
-        self._Tj_list = []
-        self._bj_list = []
-        self._vtxj_list = []
-        self._eltj_list = []
+        # self._factorizations = []
+        # self._Bj_list = []
+        # self._Cj_list = []
+        # self._Tj_list = []
+        # self._bj_list = []
+        # self._vtxj_list = []
+        # self._eltj_list = []
         
-        for j in range(self._J):
-            vtxj, eltj = local_mesh(self._param.Lx, self._param.Ly, self._nx, self._ny, j, self._J)
-            nx_local = self._nx
-            ny_local = len(np.unique(vtxj[:, 1]))
+        # for j in range(self._J):
+        #     vtxj, eltj = local_mesh(self._param.Lx, self._param.Ly, self._nx, self._ny, j, self._J)
+        #     nx_local = self._nx
+        #     ny_local = len(np.unique(vtxj[:, 1]))
             
-            beltj_phys, beltj_artf = local_boundary(nx_local, ny_local, j, self._J)
+        #     beltj_phys, beltj_artf = local_boundary(nx_local, ny_local, j, self._J)
             
-            Bj = Bj_matrix(nx_local, ny_local, j, self._J, beltj_artf)
-            Cj = Cj_matrix(self._nx, self._ny, j, self._J)
-            Aj = Aj_matrix(vtxj, eltj, beltj_phys, self._param.kappa)
-            Tj = Tj_matrix(vtxj, beltj_artf, Bj, self._param.kappa)
-            LU_j = Sj_factorization(Aj, Tj, Bj)
-            bj = bj_vector(vtxj, eltj, self._param.sp, self._param.kappa)
+        #     Bj = Bj_matrix(nx_local, ny_local, j, self._J, beltj_artf)
+        #     Cj = Cj_matrix(self._nx, self._ny, j, self._J)
+        #     Aj = Aj_matrix(vtxj, eltj, beltj_phys, self._param.kappa)
+        #     Tj = Tj_matrix(vtxj, beltj_artf, Bj, self._param.kappa)
+        #     LU_j = Sj_factorization(Aj, Tj, Bj)
+        #     bj = bj_vector(vtxj, eltj, self._param.sp, self._param.kappa)
             
-            self._factorizations.append(LU_j)
-            self._Bj_list.append(Bj)
-            self._Cj_list.append(Cj)
-            self._Tj_list.append(Tj)
-            self._bj_list.append(bj)
-            self._vtxj_list.append(vtxj)
-            self._eltj_list.append(eltj)
+        #     self._factorizations.append(LU_j)
+        #     self._Bj_list.append(Bj)
+        #     self._Cj_list.append(Cj)
+        #     self._Tj_list.append(Tj)
+        #     self._bj_list.append(bj)
+        #     self._vtxj_list.append(vtxj)
+        #     self._eltj_list.append(eltj)
         
-        self._g = g_vector(self._factorizations, self._bj_list, self._Bj_list, self._Cj_list, self._nx, self._J)
+        # self._g = g_vector(self._factorizations, self._bj_list, self._Bj_list, self._Cj_list, self._nx, self._J)
+        self._mesh = FullMesh(self._J, self._params.nx, self._params.ny, self._params.Lx, self._params.Ly)
+        self._boundary = FullBoundary(self._J, self._params.nx, self._mesh)
+
+        self._B = FullBOperator[csr_matrix](self._J, self._mesh, self._boundary)
+        self._Q = FullQOperator[csr_matrix](self._J, self._mesh)
+        self._T = FullTOperator[csr_matrix](self._J, self._mesh, self._boundary, self._B, self._params)
+        self._A = FullAOperator[csr_matrix](self._J, self._mesh, self._boundary, self._params)
+        self._s_factorization = FullSFactorization(self._J, self._A, self._T, self._B)
+        self._BVec = FullBVecOperator[np.ndarray](self._J, self._mesh, self._params)
+        
+
+        self._mesh.build()
+        self._boundary.build()
+
+        self._B.build()
+        self._Q.build()
+        self._A.build()
+        self._T.build()
+        self._s_factorization.build()
+        self._BVec.build()
+    
+        self._g = FullGVecOperator().applyGlobal(self._s_factorization, self._BVec, self._B, self._Q, self._params.nx, self._J)
+
+        self._S = FullSOperator(self._J, self._s_factorization, self._B, self._T, self._Q)
+        self._Pi = FullPiOperator(self._J, self._params.nx)
         
         # return factorizations, Bj_list, Cj_list, Tj_list, bj_list, vtxj_list, eltj_list, g
     
     def solve(self):
-        def S_op(x):
-            return S_operator(x, self._factorizations, self._Bj_list, self._Tj_list, self._Cj_list)
+        S = FullSOperator(self._J, self._s_factorization, self._B, self._T, self._Q)
+        # def S_op(x):
+        #     return S_operator(x, self._factorizations, self._Bj_list, self._Tj_list, self._Cj_list)
         
-        def Pi_op(x):
-            return Pi_operator(x, self._nx, self._J)
+        Pi = FullPiOperator(self._J, self._params.nx)
+        # def Pi_op(x):
+        #     return Pi_operator(x, self._nx, self._J)
         
         def matvec(x):
-            return x + Pi_op(S_op(x))
+            return x + Pi.applyGlobal(S.applyGlobal(x))
         
         n_skeleton = len(self._g)
         A_op = spla.LinearOperator((n_skeleton, n_skeleton), matvec=matvec, dtype=complex)
@@ -96,11 +125,11 @@ class HelmholtzSolver:
                             callback_type='pr_norm', maxiter=500)
         
         self._x = x
-        return x, self._residuals, info, S_op, Pi_op
+        return x, self._residuals, info, S, Pi
     
     def getX(self):
         return self._x
     
     def getComponents(self):
-        return (self._factorizations, self._Bj_list, self._Cj_list, self._Tj_list,
-                self._bj_list, self._vtxj_list, self._eltj_list, self._g)
+        return (self._s_factorization, self._B, self._Q, self._T,
+                self._BVec, self._mesh, self._g, self._S, self._Pi)

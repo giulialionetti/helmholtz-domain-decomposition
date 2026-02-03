@@ -1,10 +1,10 @@
 import numpy as np
 
-from src.seq.operators.pi_operator import PiOperator
-from src.seq.operators.s_operator import SOperator
+from src.common.operators.operators import PiOperator
+from src.common.operators.operators import SOperator
 
 def fixed_point_solver(g: np.ndarray, S: SOperator, Pi_op : PiOperator, omega: float, 
-                       max_iter: int = 1000, tol: float = 1e-10) -> tuple[np.ndarray, list, bool]:
+                       max_iter: int = 1000, tol: float = 1e-10, callback = None) -> tuple[np.ndarray, list, bool]:
     """
     Solve the DDM interface linear system using Richardson (Fixed-Point) iteration.
 
@@ -51,7 +51,7 @@ def fixed_point_solver(g: np.ndarray, S: SOperator, Pi_op : PiOperator, omega: f
     residuals = []
     converged = False
     
-    for _ in range(max_iter):
+    for n in range(max_iter):
         # Apply the linear operator A = (I + Pi S)
         Sx = S.applyGlobal(x)
         PSx = Pi_op.applyGlobal(Sx)
@@ -63,6 +63,9 @@ def fixed_point_solver(g: np.ndarray, S: SOperator, Pi_op : PiOperator, omega: f
         res_norm = np.linalg.norm(residual)
         residuals.append(res_norm)
         
+        if callback != None:
+            callback(n, x, residuals)
+
         if res_norm < tol:
             converged = True 
             break
