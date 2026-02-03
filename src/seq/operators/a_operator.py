@@ -33,8 +33,7 @@ class FullAOperator[T](AOperator, FullBlockDiagOperator[T]):
             self._block_list[j] = csr_matrix(Aj)
 
 
-    def buildLocal(self, j:int, vtxj: np.ndarray, eltj: np.ndarray, 
-                   beltj_phys: np.ndarray, kappa: float):
+    def buildLocal(self, j:int):
         """
         Construct local problem matrix Aj for subdomain j.
         
@@ -49,7 +48,9 @@ class FullAOperator[T](AOperator, FullBlockDiagOperator[T]):
         kappa : float
             Wavenumber k
         """
-        # Build local mass and stiffness matrices
+        vtxj, eltj = self._mesh.getLocal(j)
+        beltj_phys = self._boundary.getLocal(j)[0]
+
         M = mass(vtxj, eltj)
         K = stiffness(vtxj, eltj)
         
@@ -60,6 +61,6 @@ class FullAOperator[T](AOperator, FullBlockDiagOperator[T]):
             Mb = csr_matrix((len(vtxj), len(vtxj)))
         
         # Construct Helmholtz operator: A = K - k²M - ikMb
-        Aj = K - kappa**2 * M - 1j * kappa * Mb
+        Aj = K - self._params.kappa**2 * M - 1j * self._params.kappa * Mb
         
         self._block_list[j] = csr_matrix(Aj)

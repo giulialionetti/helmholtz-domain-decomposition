@@ -38,7 +38,7 @@ class FullBOperator[T](BOperator, FullBlockDiagOperator[T]):
             
             self._block_list[j] = Bj
 
-    def buildLocal(self, j: int, nx: int, ny: int, beltj_artf: np.ndarray):
+    def buildLocal(self, j: int):
         r"""
         Construct interface restriction matrix Bj.
         
@@ -60,8 +60,14 @@ class FullBOperator[T](BOperator, FullBlockDiagOperator[T]):
         - Σj = ∂Ωj \ ∂Ω (artificial interfaces only)
         - This extracts interface DOFs from the local solution
         """
-        nv_local = nx * ny
         
+        nx_local = self._mesh.getNxLocal(j)
+        ny_local = self._mesh.getNyLocal(j)
+
+        nv_local = nx_local * ny_local
+        
+        beltj_artf = self._boundary.getLocal(j)[1]
+
         # if len(beltj_artf) == 0:
         #     return csr_matrix((0, nv_local))
         

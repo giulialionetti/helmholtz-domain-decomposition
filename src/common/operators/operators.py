@@ -5,12 +5,12 @@ from src.common.operators.base_operators import BlockDiagOperator
 from src.common.helmholtz.helmholtz_param import HelmholtzParameters
 from src.common.mesh import Mesh, Boundary
 
-class QOperator:
+class COperator:
     def __init__(self, *, mesh: Mesh, **kwargs):
         self._mesh = mesh
         super().__init__(**kwargs)
 
-    def buildLocal(self, j: int, nx: int, ny: int):
+    def buildLocal(self, j: int):
         raise NotImplementedError("This is an abstract class")
     
 class TOperator:
@@ -22,8 +22,7 @@ class TOperator:
         self._params = params
         super().__init__(**kwargs)
 
-    def buildLocal(self, j: int, vtxj: np.ndarray, beltj_artf: np.ndarray, 
-                   Bj: csr_matrix, kappa: float):
+    def buildLocal(self, j: int):
         raise NotImplementedError("This is an abstract class")
     
 class SFactorization[T]:
@@ -33,7 +32,7 @@ class SFactorization[T]:
         self._B = B
         super().__init__(**kwargs)
 
-    def buildLocal(self, j: int, Aj: T, Tj: T, Bj: T):
+    def buildLocal(self, j: int):
         raise NotImplementedError("This is an abstract class")
     
 class SOperator[T]:
@@ -47,7 +46,7 @@ class BOperator:
         self._boundary = boundary
         super().__init__(**kwargs)
 
-    def buildLocal(self, j: int, nx: int, ny: int, beltj_artf: np.ndarray):
+    def buildLocal(self, j: int):
         raise NotImplementedError("This is an abstract class")
 
 class AOperator:
@@ -57,8 +56,7 @@ class AOperator:
         self._params = params
         super().__init__(**kwargs)
 
-    def buildLocal(self, j:int, vtxj: np.ndarray, eltj: np.ndarray, 
-                   beltj_phys: np.ndarray, kappa: float):
+    def buildLocal(self, j:int):
         raise NotImplementedError("This is an abstract class")
 
 class PiOperator:
@@ -71,7 +69,7 @@ class BVecOperator:
         self._params = params
         super().__init__(**kwargs)
 
-    def buildLocal(self, j: int, vtxj: np.ndarray, eltj: np.ndarray, sp: list, kappa: float):
+    def buildLocal(self, j: int):
         raise NotImplementedError("This is an abstract class")
 
 class GVecOperator:

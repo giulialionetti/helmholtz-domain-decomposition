@@ -38,7 +38,7 @@ try:
     from src.seq.operators.t_operator import FullTOperator
     from src.seq.operators.b_operator import FullBOperator
     from src.seq.operators.a_operator import FullAOperator
-    from src.seq.operators.q_operator import FullQOperator
+    from src.seq.operators.c_operator import FullCOperator
     from src.seq.operators.pi_operator import FullPiOperator
     from src.seq.operators.g_operator import FullGVecOperator
     from src.seq.operators.bv_operator import FullBVecOperator
@@ -105,7 +105,7 @@ def run_convergence_test():
     boundary = FullBoundary(J, nx_global, mesh)
 
     B = FullBOperator[csr_matrix](J, mesh, boundary)
-    Q = FullQOperator[csr_matrix](J, mesh)
+    Q = FullCOperator[csr_matrix](J, mesh)
     T = FullTOperator[csr_matrix](J, mesh, boundary, B, params)
     A = FullAOperator[csr_matrix](J, mesh, boundary, params)
     s_factorization = FullSFactorization(J, A, T, B)
@@ -172,7 +172,7 @@ def show_theoretical_convergence(omega: float, deltas: list[float]):
     boundary = FullBoundary(J, nx_global, mesh)
 
     B = FullBOperator[csr_matrix](J, mesh, boundary)
-    Q = FullQOperator[csr_matrix](J, mesh)
+    Q = FullCOperator[csr_matrix](J, mesh)
     T = FullTOperator[csr_matrix](J, mesh, boundary, B, params)
     A = FullAOperator[csr_matrix](J, mesh, boundary, params)
     s_factorization = FullSFactorization(J, A, T, B)

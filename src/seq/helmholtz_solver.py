@@ -21,7 +21,7 @@ from src.common.helmholtz.helmholtz_param import HelmholtzParameters
 from src.seq.operators.b_operator import FullBOperator
 from src.seq.operators.a_operator import FullAOperator
 from src.seq.operators.t_operator import FullTOperator
-from src.seq.operators.q_operator import FullQOperator
+from src.seq.operators.c_operator import FullCOperator
 from src.seq.operators.s_operator import FullSFactorization, FullSOperator
 from src.seq.operators.pi_operator import FullPiOperator
 from src.seq.operators.bv_operator import FullBVecOperator
@@ -78,7 +78,7 @@ class HelmholtzSolver:
         self._boundary = FullBoundary(self._J, self._params.nx, self._mesh)
 
         self._B = FullBOperator[csr_matrix](self._J, self._mesh, self._boundary)
-        self._Q = FullQOperator[csr_matrix](self._J, self._mesh)
+        self._Q = FullCOperator[csr_matrix](self._J, self._mesh)
         self._T = FullTOperator[csr_matrix](self._J, self._mesh, self._boundary, self._B, self._params)
         self._A = FullAOperator[csr_matrix](self._J, self._mesh, self._boundary, self._params)
         self._s_factorization = FullSFactorization(self._J, self._A, self._T, self._B)

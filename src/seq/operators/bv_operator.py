@@ -26,7 +26,7 @@ class FullBVecOperator[T](BVecOperator, FullBlockDiagOperator[T]):
             self._block_list[j] = bj
 
 
-    def buildLocal(self, j: int, vtxj: np.ndarray, eltj: np.ndarray, sp: list, kappa: float):
+    def buildLocal(self, j: int):
         """
         Construct local right-hand side vector bj.
         
@@ -41,11 +41,12 @@ class FullBVecOperator[T](BVecOperator, FullBlockDiagOperator[T]):
         kappa : float
             Wavenumber k
         """
+        vtxj, eltj = self._mesh.getLocal(j)
         # Build mass matrix
         M = mass(vtxj, eltj)
         
         # Evaluate point sources at local vertices
-        f = point_source(sp, kappa)(vtxj)
+        f = point_source(self._params.sp, self._params.kappa)(vtxj)
         
         # RHS: bj = M @ f
         bj = M @ f

@@ -1,15 +1,17 @@
 import numpy as np
+from mpi4py import MPI
 from src.common.operators.operators import GVecOperator
 from src.seq.operators.s_operator import FullSFactorization
 from src.seq.operators.b_operator import FullBOperator
 from src.seq.operators.c_operator import FullCOperator
-from src.seq.operators.pi_operator import FullPiOperator
+from src.par.operators.pi_operator import SparsePiOperator
 from src.seq.operators.bv_operator import FullBVecOperator
 
 
-class FullGVecOperator[T](GVecOperator):
-    def __init__(self):
-        super(FullGVecOperator, self).__init__()
+class SparseGVecOperator[T](GVecOperator):
+    def __init__(self, comm: MPI.Intercomm):
+        self._comm = comm
+        super(SparseGVecOperator, self).__init__()
 
     def applyGlobal(self, s_factorization: FullSFactorization, BVec: FullBVecOperator, B : FullBOperator, 
                     Q: FullCOperator, nx: int, J: int) -> np.ndarray:
@@ -59,18 +61,20 @@ class FullGVecOperator[T](GVecOperator):
         n_skeleton = 2 * (J - 1) * nx
         g_temp = np.zeros(n_skeleton, dtype=complex)
         
-        for j in range(J):
-            # 1. Solve local problem driven ONLY by volume source bj
-            #    (Aj - i B_j^T Tj Bj) uj = bj
-            uj = s_factorization.applyLocal(j, BVec.getBlock(j))
-            
-            # 2. Extract trace on the boundary: Bj @ uj
-            interface_vals = B.applyLocal(j,uj)
-            
-            # 3. Map local boundary values to global position
-            g_temp += Q.T.applyLocal(j, interface_vals)
+        # 1. Solve local problem driven ONLY by volume source bj
+        #    (Aj - i B_j^T Tj Bj) uj = bj
+        uj = s_factorization.applyLocal(self._comm.Get_rank(), BVec.getBlock(self._comm.Get_rank()))
+        
+        # 2. Extract trace on the boundary: Bj @ uj
+        interface_vals = B.applyLocal(self._comm.Get_rank(),uj)
+        
+        # 3. Map local boundary values to global position
+        g_temp = Q.T.applyLocal(self._comm.Get_rank(), interface_vals)
+
+        # Maybe only on rank 0?
+        self._comm.Allreduce(MPI.IN_PLACE, g_temp)
         
         # 4. Apply exchange operator to finalize g
-        g = FullPiOperator(J, nx).applyGlobal(g_temp)
+        g = SparsePiOperator(J, self._comm, nx).applyGlobal(g_temp)
         
         return g

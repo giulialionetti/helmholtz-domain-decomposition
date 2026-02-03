@@ -6,7 +6,7 @@ from src.common.operators.operators import SFactorization, SOperator
 from src.seq.operators.base_operators import FullBlockDiagOperator
 from src.seq.operators.t_operator import FullTOperator
 from src.seq.operators.b_operator import FullBOperator
-from src.seq.operators.q_operator import FullQOperator
+from src.seq.operators.c_operator import FullCOperator
 from src.seq.operators.a_operator import FullAOperator
 
 class FullSFactorization[T](SFactorization[T], FullBlockDiagOperator[T]):
@@ -31,9 +31,12 @@ class FullSFactorization[T](SFactorization[T], FullBlockDiagOperator[T]):
             self._block_list[j] = spla.splu(csc_matrix(modified_Aj))
             
 
-    def buildLocal(self, j: int, Aj: T, Tj: T, Bj: T):
+    def buildLocal(self, j: int):
         # Construct modified local matrix: Aj - i * Bj^T @ Tj @ Bj
+        Aj = self._A.getBlock(j)
+        Bj = self._B.getBlock(j)
         if Bj.shape[0] > 0: # If there are artificial interfaces        # type: ignore
+            Tj = self._T.getBlock(j)
             modified_Aj = Aj - 1j * (Bj.T @ Tj @ Bj) 
         else:
             modified_Aj = Aj # No modification needed
@@ -61,7 +64,7 @@ class FullSFactorization[T](SFactorization[T], FullBlockDiagOperator[T]):
 
 class FullSOperator[T](SOperator, FullBlockDiagOperator[T]):
     def __init__(self, num_blocks: int, s_fact: FullSFactorization, B: FullBOperator, 
-                 T: FullTOperator, Q: FullQOperator):
+                 T: FullTOperator, Q: FullCOperator):
         super(SOperator, self).__init__(num_blocks=num_blocks)
         self._s_factorization = s_fact
         self._B = B

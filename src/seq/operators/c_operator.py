@@ -2,12 +2,12 @@ import numpy as np
 from scipy.sparse import csr_matrix
 
 from src.seq.operators.base_operators import FullRowBlockOperator
-from src.common.operators.operators import QOperator
+from src.common.operators.operators import COperator
 from src.seq.mesh.mesh import FullMesh
 
-class FullQOperator[T](QOperator, FullRowBlockOperator[T]):
+class FullCOperator[T](COperator, FullRowBlockOperator[T]):
     def __init__(self, num_blocks: int, mesh: FullMesh):
-        super(FullQOperator, self).__init__(mesh=mesh, num_blocks=num_blocks)
+        super(FullCOperator, self).__init__(mesh=mesh, num_blocks=num_blocks)
         self._mesh = mesh
         
     def build(self):
@@ -59,7 +59,7 @@ class FullQOperator[T](QOperator, FullRowBlockOperator[T]):
             self._block_list[j] = Cj
 
 
-    def buildLocal(self, j: int, nx: int, ny: int):
+    def buildLocal(self, j: int):
         """
         Construct global interface restriction matrix Cj with 2-sided interfaces.
         
@@ -70,7 +70,9 @@ class FullQOperator[T](QOperator, FullRowBlockOperator[T]):
         It maps to Interface j, Side 0 (the 'Up' side belonging to j).
         """
         # Total global interface DOFs: (J-1) interfaces * 2 sides * nx points
-        n_interface_total = 2 * (self._num_blocks - 1) * nx
+        nx_global = self._mesh.getNx()
+        ny_global = self._mesh.getNy()
+        n_interface_total = 2 * (self._num_blocks - 1) * nx_global
         
         row_indices = []
         col_indices = []
@@ -81,9 +83,9 @@ class FullQOperator[T](QOperator, FullRowBlockOperator[T]):
         if j > 0:
             interface_idx = j - 1
             # Block index for "Side 1" of interface_idx is: 2 * interface_idx + 1
-            global_start_idx = (2 * interface_idx + 1) * nx
+            global_start_idx = (2 * interface_idx + 1) * nx_global
             
-            for i in range(nx):
+            for i in range(nx_global):
                 row_indices.append(current_row)
                 col_indices.append(global_start_idx + i)
                 current_row += 1
@@ -93,9 +95,9 @@ class FullQOperator[T](QOperator, FullRowBlockOperator[T]):
         if j < self._num_blocks - 1:
             interface_idx = j
             # Block index for "Side 0" of interface_idx is: 2 * interface_idx
-            global_start_idx = (2 * interface_idx) * nx
+            global_start_idx = (2 * interface_idx) * nx_global
             
-            for i in range(nx):
+            for i in range(nx_global):
                 row_indices.append(current_row)
                 col_indices.append(global_start_idx + i)
                 current_row += 1

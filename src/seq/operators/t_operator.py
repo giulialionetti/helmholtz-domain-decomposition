@@ -32,8 +32,9 @@ class FullTOperator[T](TOperator, FullBlockDiagOperator):
             # self._block_list[j] = csr_matrix(Tj)
             self.setBlock(j, csr_matrix(Tj))
 
-    def buildLocal(self, j: int, vtxj: np.ndarray, beltj_artf: np.ndarray, 
-                   Bj: csr_matrix, kappa: float):
+    def buildLocal(self, j: int):
+        vtxj = self._mesh.getLocal(j)[0]
+        beltj_artf = self._boundary.getLocal(j)[1]
         if len(beltj_artf) == 0:
             # No artificial interfaces
             return csr_matrix((0, 0))
@@ -42,7 +43,8 @@ class FullTOperator[T](TOperator, FullBlockDiagOperator):
         M_interface = mass(vtxj, beltj_artf)
         
         # Restrict to interface DOFs: Tj = κ * Bj @ M_interface @ Bj^T
-        Tj = kappa * (Bj @ M_interface @ Bj.T)
+        Bj = self._B.getBlock(j)
+        Tj = self._params.kappa * (Bj @ M_interface @ Bj.T)
         
         # self._block_list[j] = csr_matrix(Tj)
         self.setBlock(j, csr_matrix(Tj))
