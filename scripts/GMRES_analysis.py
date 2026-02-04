@@ -125,7 +125,7 @@ def task4():
     logger.info("Task 4: Mesh refinement study")
     logger.info("-"*70)
 
-    mesh_sizes = [(17, 33), (25, 49), (33, 65)]
+    mesh_sizes = [(17, 33), (25, 49), (33, 65), (101, 101)]
     J = 4
     refinement_results = []
 
@@ -141,10 +141,48 @@ def task4():
         # factorizations, Bj_list, Cj_list, Tj_list, bj_list, vtxj_list, eltj_list, g = components
         s_factorization, B, Q, T, b, mesh, g, S, Pi = components
 
-        
+        start = time.time() 
         x, residuals, info, _, _ = solver4.solve()
+        end = time.time()
+        logger.info(f"    DOFs: {nx * ny}, Iterations: {len(residuals)}, Time: {end-start}")
         
-        logger.info(f"    DOFs: {nx * ny}, Iterations: {len(residuals)}")
+        refinement_results.append({
+            'nx': nx, 'ny': ny, 'ndof': nx * ny,
+            'iterations': len(residuals), 'residuals': residuals
+        })
+
+    return refinement_results
+
+def task4_2():
+    logger.info("")
+    logger.info("Task 4.2: Mesh refinement study (advanced)")
+    logger.info("-"*70)
+
+    local_params = HelmholtzParameters(Lx=100, Ly=200)
+
+    mesh_sizes = [(17, 33), (25, 49), (33, 65), (101, 101)]
+    J = 4
+    refinement_results = []
+
+    for nx, ny in mesh_sizes:
+        logger.info(f"  Mesh {nx}x{ny}")
+        
+        params.nx = nx
+        params.ny = ny
+        solver4 = HelmholtzSolver(params,J)
+
+        solver4.assembly()
+        components = solver4.getComponents()
+        # factorizations, Bj_list, Cj_list, Tj_list, bj_list, vtxj_list, eltj_list, g = components
+        s_factorization, B, Q, T, b, mesh, g, S, Pi = components
+
+        start = time.time() 
+        x, residuals, info, _, _ = solver4.solve()
+        end = time.time()
+        A_op = solver4.getIterationMatrix()
+        # sigma_max = spla.eigsh(A_op, k=1, which='LM', return_eigenvectors=False)[0]
+        # sigma_min = spla.eigsh(A_op, k=1, which='SM', return_eigenvectors=False)[0]
+        logger.info(f"    DOFs: {nx * ny}, Iterations: {len(residuals)}, Time: {end-start}")
         
         refinement_results.append({
             'nx': nx, 'ny': ny, 'ndof': nx * ny,
@@ -425,10 +463,14 @@ def task_7(solver6, nx, ny):
 
     return time_full, time_ddm
 
+
+    
+
 if __name__ == "__main__":
 
     residuals_fp, residuals_gmres = task1_2()
     refinement_results = task4()
+    task4_2()
     fixed_domain_results, fixed_dofs_results = task_5()
     plot_4_5(refinement_results, fixed_domain_results, fixed_dofs_results)
     solver6, nx, ny = task_6()

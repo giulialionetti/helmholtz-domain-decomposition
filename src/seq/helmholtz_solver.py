@@ -102,7 +102,7 @@ class HelmholtzSolver:
         
         # return factorizations, Bj_list, Cj_list, Tj_list, bj_list, vtxj_list, eltj_list, g
     
-    def solve(self):
+    def solve(self, callback = None, callback_type: str = "pr_norm"):
         S = FullSOperator(self._J, self._s_factorization, self._B, self._T, self._Q)
         # def S_op(x):
         #     return S_operator(x, self._factorizations, self._Bj_list, self._Tj_list, self._Cj_list)
@@ -115,14 +115,16 @@ class HelmholtzSolver:
             return x + Pi.applyGlobal(S.applyGlobal(x))
         
         n_skeleton = len(self._g)
-        A_op = spla.LinearOperator((n_skeleton, n_skeleton), matvec=matvec, dtype=complex)
+        self._A_op = spla.LinearOperator((n_skeleton, n_skeleton), matvec=matvec, dtype=complex)
         
         self._residuals = []
-        def callback(rk):
-            self._residuals.append(rk)
+        if callback == None:
+            def _callback(rk):
+                self._residuals.append(rk)
+            callback = _callback
         
-        x, info = spla.gmres(A_op, -self._g, rtol=1e-10, callback=callback, 
-                            callback_type='pr_norm', maxiter=500)
+        x, info = spla.gmres(self._A_op, -self._g, rtol=1e-10, callback=callback, 
+                            callback_type=callback_type, maxiter=500)
         
         self._x = x
         return x, self._residuals, info, S, Pi
@@ -133,3 +135,6 @@ class HelmholtzSolver:
     def getComponents(self):
         return (self._s_factorization, self._B, self._Q, self._T,
                 self._BVec, self._mesh, self._g, self._S, self._Pi)
+    
+    def getIterationMatrix(self):
+        return self._A_op

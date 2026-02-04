@@ -29,15 +29,22 @@ class SparsePiOperator(PiOperator):
         #     # Perform Swap
         #     Px[idx_side0] = x[idx_side1]
         #     Px[idx_side1] = x[idx_side0]
-        # rank = self._comm.Get_rank()
-        # if rank == 0:
-        #     # Exchange with processor 1
+        rank = self._comm.Get_rank()
+        if rank == 0:
+            # Exchange with processor 1
+            self._comm.Sendrecv_replace(x, dest=1, sendtag=0, source=1, recvtag=0)
             
-        # elif rank == self._J - 1:
-        #     # Exchange with processor J - 2
+        elif rank == self._J - 1:
+            # Exchange with processor J - 2
+            self._comm.Sendrecv_replace(x, dest=rank-1, sendtag=0, source=rank-1, recvtag=0)
+        else:
+            # Exchange with processor rank - 1 and rank + 1
+            if rank % 2 == 1:
+                self._comm.Sendrecv_replace(x[0:self._nx], dest=rank-1, sendtag=0, source=rank-1,recvtag=0)
+            else:
+                self._comm.Sendrecv_replace(x[self._nx:], dest=rank+1, sendtag=0, source=rank+1,recvtag=0)
 
-        # else:
-        #     # Exchange with processor rank - 1 and rank + 1
+
 
         # return Px
         return np.zeros(0)
