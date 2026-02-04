@@ -62,7 +62,7 @@ class TransposedFullBlockDiagOperator[T](TransposedBlockDiagOperator[T]):
         if x.shape[0] != self._op._num_rows:
             raise ValueError("Input vector has wrong size")
 
-        res = np.zeros(self._op._num_rows, dtype=x.dtype)
+        res = np.zeros(self._op._num_cols, dtype=x.dtype)
         cumulative_rows = 0
         cumulative_cols = 0
 
@@ -70,10 +70,10 @@ class TransposedFullBlockDiagOperator[T](TransposedBlockDiagOperator[T]):
             Bj = self._op._block_list[j]
             rows, cols = self._op._shapes[j]
 
-            res[cumulative_cols:cumulative_cols + rows] = Bj @ x[cumulative_rows:cumulative_rows + cols]
+            res[cumulative_cols:cumulative_cols + cols] = Bj.T @ x[cumulative_rows:cumulative_rows + rows]
 
-            cumulative_cols += rows   # swapped because doing the transpose
-            cumulative_rows += cols
+            cumulative_cols += cols  
+            cumulative_rows += rows
 
         return res
 
