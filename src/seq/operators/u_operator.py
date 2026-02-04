@@ -49,32 +49,3 @@ def uj_solution(xj: np.ndarray, LU_j, Bj: csr_matrix,
     uj = LU_j.solve(rhs)
     
     return uj
-
-# class UOperator[T](FullBlockDiagOperator[T]):
-#     def __init__(self, num_blocks: int, B: BOperator[T], T: TOperator[T], b: np.ndarray, LU):
-#         super(UOperator, self).__init__(num_blocks)
-#         self._T = T
-#         self._B = B
-#         self._b = b
-#         self._LU = LU
-
-#         self.T = None
-
-
-#     def applyLocal(self, j: int, xj: np.ndarray) -> np.ndarray:
-#         # Map interface data back to volume source terms
-#         # bj = ... slice in some way
-#         rhs = self._bj + self._B.T.applyLocal(j, self._T.applyLocal(j, xj))
-        
-#         # Solve the local volume problem
-#         #uj = self._LU_j.solve(rhs)
-#         uj = self._LU.applyLocal(rhs)
-#         return uj
-
-#     def applyGlobal(self, x: np.ndarray) -> np.ndarray:
-
-#         rhs = self._b + self._B.T.applyGlobal(self._T.applyGlobal(x))
-
-#         # uj = self._LU.solve(rhs)
-#         uj = self._LU.applyGlobal(rhs)
-#         return uj

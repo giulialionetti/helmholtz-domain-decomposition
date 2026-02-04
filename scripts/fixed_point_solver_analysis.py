@@ -219,7 +219,7 @@ def show_theoretical_convergence(omega: float, deltas: list[float]):
     tol = 1e-10 # double precision
     
     logger.info("Starting Fixed Point Solver...")
-    x_sol_precise, res, converged = fixed_point_solver(g, S, Pi_op, omega, max_iter, tol)
+    x_sol_precise, res, converged = fixed_point_solver(-g, S, Pi_op, omega, max_iter, tol)
     
     logger.info("-" * 30)
     logger.info(f"Iterations:     {len(res)}")
@@ -240,7 +240,7 @@ def show_theoretical_convergence(omega: float, deltas: list[float]):
     tol = 1e-8 # double precision
     
     logger.info("Starting Fixed Point Solver...")
-    x_sol, res, converged = fixed_point_solver(g, S, Pi_op, omega, max_iter, tol, callback=callback)
+    x_sol, res, converged = fixed_point_solver(-g, S, Pi_op, omega, max_iter, tol, callback=callback)
     
     callback.plot()
 
@@ -322,7 +322,7 @@ def plot_solution_over_iterations(omega: float):
     tol = 1e-8 # double precision
     
     logger.info("Starting Fixed Point Solver...")
-    x_sol, res, converged = fixed_point_solver(g, S, Pi_op, omega, max_iter, tol, callback=callback)
+    x_sol, res, converged = fixed_point_solver(-g, S, Pi_op, omega, max_iter, tol, callback=callback)
 
     # print(len(callback.get_x_list()))
     # exit(0)
@@ -422,7 +422,7 @@ def plot_solution_over_iterations_gif(omega: float):
     tol = 1e-10 # double precision
     
     logger.info("Starting Fixed Point Solver...")
-    x_sol_precise, res, converged = fixed_point_solver(g, S, Pi_op, omega, max_iter, tol)
+    x_sol_precise, res, converged = fixed_point_solver(-g, S, Pi_op, omega, max_iter, tol)
     
     logger.info("-" * 30)
     logger.info(f"Iterations:     {len(res)}")

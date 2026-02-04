@@ -74,46 +74,25 @@ class FullSOperator[T](SOperator, FullBlockDiagOperator[T]):
         self.T = None
 
     def applyGlobal(self, x: np.ndarray) -> np.ndarray:
-        """
-        Apply the global Schur complement operator S to vector x.
         
-        S is block diagonal: S = diag(S1, S2, ..., SJ)
-        where Sj xj = Bj (Aj - iB*j Tj Bj)^(-1) B*j Tj xj
-        
-        Parameters:
-        -----------
-        x : ndarray
-            Global interface vector
-        factorizations : list
-            List of LU factorizations for each subdomain
-        Bj_list : list
-            List of Bj matrices
-        Tj_list : list
-            List of Tj matrices
-        Cj_list : list
-            List of Cj matrices
-        
-        Returns:
-        --------
-        Sx : ndarray
-            Result of S @ x
-        """
-        Sx = np.zeros_like(x)
+        Sx = x.astype(complex).copy() 
         
         for j in range(self._num_blocks):
-            # Extract local interface portion: xj = Cj @ x
+            # Extract local interface portion
             xj = self._Q.applyLocal(j, x)
             
-            # Compute: Tj @ xj
+            # Compute RHS: Tj @ xj (T includes kappa)
             rhs = self._T.applyLocal(j, xj)
             
-            # Solve: (Aj - iB*j Tj Bj)^(-1) @ (B*j @ Tj @ xj)
+            # Solve local problem
             local_sol = self._s_factorization.applyLocal(j, self._B.T.applyLocal(j, rhs))
             
-            # Apply: Bj @ local_sol
-            Sj_xj = self._B.applyLocal(j, local_sol)
+            # Extract trace: Bj @ local_sol
+            trace_u = self._B.applyLocal(j, local_sol)
             
-            # Assemble back to global skeleton: C*j @ Sj_xj
-            Sx += self._Q.T.applyLocal(j,Sj_xj)
+            correction = 2j * trace_u
+            
+            # Add to global vector
+            Sx += self._Q.T.applyLocal(j, correction)
         
         return Sx

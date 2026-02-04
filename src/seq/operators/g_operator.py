@@ -73,4 +73,4 @@ class FullGVecOperator[T](GVecOperator):
         # 4. Apply exchange operator to finalize g
         g = FullPiOperator(J, nx).applyGlobal(g_temp)
         
-        return -2*1j*g
+        return 2*1j*g
