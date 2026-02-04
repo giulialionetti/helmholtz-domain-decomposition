@@ -374,37 +374,35 @@ def task_5():
 
 def plot_4_5(refinement_results, fixed_domain_results, fixed_dofs_results):
     # Plot Tasks 4 and 5
-    fig = plt.figure(figsize=(18, 5))
-
-    ax1 = plt.subplot(131)
     for r in refinement_results:
-        ax1.semilogy(r['residuals'], label=f"{r['nx']}×{r['ny']} ({r['ndof']} DOFs)", linewidth=2)
-    ax1.set_xlabel('Iteration', fontsize=11)
-    ax1.set_ylabel('Residual norm', fontsize=11)
-    ax1.set_title('Task 4: Mesh Refinement', fontsize=12, fontweight='bold')
-    ax1.grid(True, alpha=0.3)
-    ax1.legend(fontsize=9)
-
-    ax2 = plt.subplot(132)
-    for r in fixed_domain_results:
-        ax2.semilogy(r['residuals'], label=f"J={r['J']}", linewidth=2)
-    ax2.set_xlabel('Iteration', fontsize=11)
-    ax2.set_ylabel('Residual norm', fontsize=11)
-    ax2.set_title('Task 5a: Fixed Domain Size', fontsize=12, fontweight='bold')
-    ax2.grid(True, alpha=0.3)
-    ax2.legend(fontsize=10)
-
-    ax3 = plt.subplot(133)
-    for r in fixed_dofs_results:
-        ax3.semilogy(r['residuals'], label=f"J={r['J']}", linewidth=2)
-    ax3.set_xlabel('Iteration', fontsize=11)
-    ax3.set_ylabel('Residual norm', fontsize=11)
-    ax3.set_title('Task 5b: Fixed DOFs/Subdomain', fontsize=12, fontweight='bold')
-    ax3.grid(True, alpha=0.3)
-    ax3.legend(fontsize=10)
-
+        plt.semilogy(r['residuals'], label=f"{r['nx']}×{r['ny']} ({r['ndof']} DOFs)", linewidth=2)
+    plt.xlabel('Iteration', fontsize=11)
+    plt.ylabel('Residual norm', fontsize=11)
+    plt.grid(True, alpha=0.3)
+    plt.legend(fontsize=9)
     plt.tight_layout()
-    plt.savefig(os.path.join(plots_dir, 'tasks_4_5_convergence_studies.png'), dpi=150)
+    plt.savefig(os.path.join(plots_dir, 'task_4_mesh_refinement.png'), dpi=150)
+    plt.close()
+
+    for r in fixed_domain_results:
+        plt.semilogy(r['residuals'], label=f"J={r['J']}", linewidth=2)
+    plt.xlabel('Iteration', fontsize=11)
+    plt.ylabel('Residual norm', fontsize=11)
+    plt.grid(True, alpha=0.3)
+    plt.legend(fontsize=10)
+    plt.tight_layout()
+    plt.savefig(os.path.join(plots_dir, 'task5a_fixed_domain_size.png'), dpi=150)
+    plt.close()
+
+    for r in fixed_dofs_results:
+        plt.semilogy(r['residuals'], label=f"J={r['J']}", linewidth=2)
+    plt.xlabel('Iteration', fontsize=11)
+    plt.ylabel('Residual norm', fontsize=11)
+    plt.grid(True, alpha=0.3)
+    plt.legend(fontsize=10)
+    plt.tight_layout()
+    plt.savefig(os.path.join(plots_dir, 'task_5b_fixed_dofs_subdomain.png'), dpi=150)
+    plt.close()
 
 
 # ==============================================================================
@@ -418,6 +416,7 @@ def task_6():
     nx, ny, J = 33, 65, 4
     logger.info(f"Configuration: {nx}x{ny} mesh, {J} subdomains")
 
+    # params.sp = [np.array([0.5,0.5,1.0])]
     params.nx = nx
     params.ny = ny
     solver6 = HelmholtzSolver(params, J)
@@ -442,44 +441,45 @@ def task_6():
         uj_list.append(uj)
 
     # Plot real parts
-    fig, axes = plt.subplots(2, 2, figsize=(14, 12))
-    axes = axes.flatten()
+    if J == 4:
+        fig, axes = plt.subplots(2, 2, figsize=(14, 12))
+        axes = axes.flatten()
 
-    for j in range(J):
-        ax = axes[j]
-        plt.sca(ax)
-        vtxj, eltj = mesh.getLocal(j)
-        plot_mesh(vtxj, eltj)
-        tc = ax.tricontourf(vtxj[:, 0], vtxj[:, 1], 
-                            uj_list[j].real, levels=20, cmap='RdBu_r')
-        ax.set_title(f'Subdomain {j} - Real part', fontsize=12, fontweight='bold')
-        ax.set_xlabel('x')
-        ax.set_ylabel('y')
-        ax.set_aspect('equal')
-        plt.colorbar(tc, ax=ax)
+        for j in range(J):
+            ax = axes[j]
+            plt.sca(ax)
+            vtxj, eltj = mesh.getLocal(j)
+            plot_mesh(vtxj, eltj)
+            tc = ax.tricontourf(vtxj[:, 0], vtxj[:, 1], 
+                                uj_list[j].real, levels=20, cmap='RdBu_r')
+            ax.set_title(f'Subdomain {j} - Real part', fontsize=12, fontweight='bold')
+            ax.set_xlabel('x')
+            ax.set_ylabel('y')
+            ax.set_aspect('equal')
+            plt.colorbar(tc, ax=ax)
 
-    plt.tight_layout()
-    plt.savefig(os.path.join(plots_dir, 'task6_local_solutions_real.png'), dpi=150)
+        plt.tight_layout()
+        plt.savefig(os.path.join(plots_dir, 'task6_local_solutions_real.png'), dpi=150)
 
-    # Plot modulus
-    fig, axes = plt.subplots(2, 2, figsize=(14, 12))
-    axes = axes.flatten()
+        # Plot modulus
+        fig, axes = plt.subplots(2, 2, figsize=(14, 12))
+        axes = axes.flatten()
 
-    for j in range(J):
-        ax = axes[j]
-        plt.sca(ax)
-        vtxj, eltj = mesh.getLocal(j)
-        plot_mesh(vtxj, eltj)
-        tc = ax.tricontourf(vtxj[:, 0], vtxj[:, 1], 
-                            np.abs(uj_list[j]), levels=20, cmap='viridis')
-        ax.set_title(f'Subdomain {j} - Modulus', fontsize=12, fontweight='bold')
-        ax.set_xlabel('x')
-        ax.set_ylabel('y')
-        ax.set_aspect('equal')
-        plt.colorbar(tc, ax=ax)
+        for j in range(J):
+            ax = axes[j]
+            plt.sca(ax)
+            vtxj, eltj = mesh.getLocal(j)
+            plot_mesh(vtxj, eltj)
+            tc = ax.tricontourf(vtxj[:, 0], vtxj[:, 1], 
+                                np.abs(uj_list[j]), levels=20, cmap='viridis')
+            ax.set_title(f'Subdomain {j} - Modulus', fontsize=12, fontweight='bold')
+            ax.set_xlabel('x')
+            ax.set_ylabel('y')
+            ax.set_aspect('equal')
+            plt.colorbar(tc, ax=ax)
 
-    plt.tight_layout()
-    plt.savefig(os.path.join(plots_dir, 'task6_local_solutions_modulus.png'), dpi=150)
+        plt.tight_layout()
+        plt.savefig(os.path.join(plots_dir, 'task6_local_solutions_modulus.png'), dpi=150)
     
     return solver6, nx, ny
 
@@ -526,6 +526,7 @@ def task_7(solver6, nx, ny):
 
     x_full, info_full = spla.gmres(A_full, b_full, rtol=1e-10, callback=callback_full,
                                     callback_type='pr_norm', maxiter=5000)
+    reference_solution = x_full
     time_full = time.time() - start_full
     logger.info(f"  Time: {time_full:.3f}s, Iterations: {len(residuals_full)}")
 
@@ -533,32 +534,61 @@ def task_7(solver6, nx, ny):
     logger.info(f"Speedup: {time_full/time_ddm:.2f}x")
 
     # Plot full reference solution
-    plt.figure(figsize=(8, 10))
+    # plt.figure(figsize=(8, 10))
     triang = mtri.Triangulation(vtx[:, 0], vtx[:, 1], elt)
-    tc_full = plt.tricontourf(triang, np.abs(x_full), levels=100, cmap='viridis')
-    plt.colorbar(tc_full)
-    plt.title("Full Reference Solution (GMRES)")
-    plt.xlabel('x')
-    plt.ylabel('y')
-    plt.axis('equal')
-    plt.savefig(os.path.join(plots_dir, "full_reference_solution.png"), dpi=150) 
+    # tc_full = plt.tricontourf(triang, np.abs(x_full), levels=100, cmap='viridis')
+    # plt.colorbar(tc_full)
+    # plt.title("Full Reference Solution (GMRES)")
+    # plt.xlabel('x')
+    # plt.ylabel('y')
+    # plt.axis('equal')
+    # plt.savefig(os.path.join(plots_dir, "full_reference_solution.png"), dpi=150) 
+
+
+    # fig, axes = plt.subplots(1, 2, figsize=(14, 8))
+    # ax = axes[0]
+    # tc = ax.tricontourf(triang, reference_solution.real, levels=50, cmap='RdBu_r')
+    # ax.set_aspect('equal')
+    # ax.set_xlabel('x')
+    # ax.set_ylabel('y')
+    # # ax.set_title(f'{title} - Real Part')
+    # plt.colorbar(tc, ax=ax)
+    
+    # # Absolute value
+    # ax = axes[1]
+    # tc = ax.tricontourf(triang, np.abs(reference_solution), levels=50, cmap='viridis')
+    # ax.set_aspect('equal')
+    # ax.set_xlabel('x')
+    # ax.set_ylabel('y')
+    # # ax.set_title(f'{title} - Absolute Value')
+    # plt.colorbar(tc, ax=ax)
+    
+    # plt.tight_layout()
+    # plt.savefig(os.path.join(plots_dir, 'full_reference_solution.png'), dpi=150)
+    # plt.close()
 
     # Plot runtime comparison
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
+    # fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
 
     # Convergence
-    ax1.semilogy(residuals_ddm, 'b-', linewidth=2, label='DDM-GMRES')
-    ax1.semilogy(residuals_full, 'r--', linewidth=2, label='Full GMRES')
-    ax1.set_xlabel('Iteration', fontsize=11)
-    ax1.set_ylabel('Residual norm', fontsize=11)
-    ax1.set_title('Convergence Comparison', fontsize=12, fontweight='bold')
-    ax1.grid(True, alpha=0.3)
-    ax1.legend(fontsize=11)
+    ax = plt.subplot()
+    ax.semilogy(residuals_ddm, 'b-', linewidth=2, label='DDM-GMRES')
+    ax.semilogy(residuals_full, 'r--', linewidth=2, label='Full GMRES')
+    ax.set_xlabel('Iteration', fontsize=11)
+    ax.set_ylabel('Residual norm', fontsize=11)
+    # ax1.set_title('Convergence Comparison', fontsize=12, fontweight='bold')
+    ax.grid(True, alpha=0.3)
+    ax.legend(fontsize=11)
+    plt.tight_layout()
+    plt.savefig(os.path.join(plots_dir, 'task7_convergence_comparison.png'), dpi=150)
+    plt.close()
 
     # Runtime bars
     methods = ['DDM-GMRES', 'Full GMRES']
     times = [time_ddm, time_full]
     iterations = [len(residuals_ddm), len(residuals_full)]
+
+    ax2 = plt.subplot()
 
     x_pos = np.arange(len(methods))
     ax2_twin = ax2.twinx()
@@ -571,7 +601,7 @@ def task_7(solver6, nx, ny):
     ax2_twin.set_ylabel('Iterations', color='coral', fontsize=11)
     ax2.set_xticks(x_pos)
     ax2.set_xticklabels(methods)
-    ax2.set_title('Runtime Comparison', fontsize=12, fontweight='bold')
+    # ax2.set_title('Runtime Comparison', fontsize=12, fontweight='bold')
     ax2.tick_params(axis='y', labelcolor='steelblue')
     ax2_twin.tick_params(axis='y', labelcolor='coral')
 
@@ -587,6 +617,7 @@ def task_7(solver6, nx, ny):
 
     plt.tight_layout()
     plt.savefig(os.path.join(plots_dir, 'task7_runtime_comparison.png'), dpi=150)
+    plt.close()
 
     # =========================================================================
     # Quantitative comparison: DDM vs Full GMRES solutions
@@ -729,6 +760,17 @@ def task_7(solver6, nx, ny):
     return time_full, time_ddm
 
 
+
+
+
+
+
+
+
+
+
+
+
 def plot_global_solution(solver, mesh, J, nx, 
                          title: str = "Global DDM Solution",
                          plot_type: str = "both",
@@ -867,7 +909,7 @@ if __name__ == "__main__":
                          title="Helmholtz DDM Solution",
                          plot_type="both",
                          save_prefix="global_ddm_solution")
-
+    
     logger.info("")
     logger.info("="*70)
     logger.info("SUMMARY")
