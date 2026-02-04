@@ -58,7 +58,7 @@ def fixed_point_solver(g: np.ndarray, S: SOperator, Pi_op : PiOperator, omega: f
         
         # Calculate residual: r = Ax - b = (I + Pi S)x + g
         # Note: We are solving Ax = -g, so Ax + g = 0
-        residual = x + PSx + g
+        residual = g - (x + PSx)
         
         res_norm = np.linalg.norm(residual)
         residuals.append(res_norm)
@@ -71,6 +71,6 @@ def fixed_point_solver(g: np.ndarray, S: SOperator, Pi_op : PiOperator, omega: f
             break
         
         # Richardson update step
-        x = x - omega * residual
+        x = x + omega * residual
     
     return x, residuals, converged

@@ -49,14 +49,14 @@ class FullSFactorization[T](SFactorization[T], FullBlockDiagOperator[T]):
         return self._block_list[j].solve(xj)  
     
     def applyGlobal(self, x: np.ndarray) -> np.ndarray:
-        res = np.zeros((0,0))
+        res = np.zeros(0)
         accumulate_cols = 0
         for j in range(self._num_blocks):
 
-            res = np.concatenate(res, 
+            res = np.concatenate([res, 
                                  self.applyLocal(j, 
                                                  x[accumulate_cols:accumulate_cols+self._shapes[j][1]]
-                                                )
+                                                )]
                                 )
             accumulate_cols += self._shapes[j][1]
         return res

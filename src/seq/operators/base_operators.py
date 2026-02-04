@@ -53,10 +53,10 @@ class TransposedFullBlockDiagOperator[T](TransposedBlockDiagOperator[T]):
         self._op = op
 
     def getBlock(self, j: int) -> T:
-        return self._op.getBlock(j).T       # type: ignore
+        return self._op.getBlock(j).T.conj()       # type: ignore
 
     def applyLocal(self, j: int, xj: np.ndarray) -> np.ndarray:
-        return self._op._block_list[j].T @ xj   # type: ignore
+        return self._op._block_list[j].T.conj() @ xj   # type: ignore
     
     def applyGlobal(self, x: np.ndarray) -> np.ndarray:
         if x.shape[0] != self._op._num_rows:
@@ -70,7 +70,7 @@ class TransposedFullBlockDiagOperator[T](TransposedBlockDiagOperator[T]):
             Bj = self._op._block_list[j]
             rows, cols = self._op._shapes[j]
 
-            res[cumulative_cols:cumulative_cols + cols] = Bj.T @ x[cumulative_rows:cumulative_rows + rows]
+            res[cumulative_cols:cumulative_cols + cols] = Bj.T.conj() @ x[cumulative_rows:cumulative_rows + rows]
 
             cumulative_cols += cols  
             cumulative_rows += rows
@@ -123,17 +123,17 @@ class TransposedFullRowBlockQuasiDiagOperator[T](TransposedBlockQuasiDiagOperato
         self._op = op
 
     def getBlock(self, j: int) -> T:
-        return self._op.getBlock(j).T # type: ignore
+        return self._op.getBlock(j).T.conj() # type: ignore
 
     def applyLocal(self, j: int, xj: np.ndarray) -> np.ndarray:
-        return self._op._block_list[j].T @ xj         # type: ignore
+        return self._op._block_list[j].T.conj() @ xj         # type: ignore
     
     def applyGlobal(self, x: np.ndarray) -> np.ndarray:
         res = np.zeros(0)
         
         cumulative_cols = 0
         for j in range(self._op._num_blocks):
-            partial_res = self._op._block_list[j].T @ x[cumulative_cols:cumulative_cols+self._op._block_list[j].T.shape[1]] # type: ignore
+            partial_res = self._op._block_list[j].T.conj() @ x[cumulative_cols:cumulative_cols+self._op._block_list[j].T.shape[1]] # type: ignore
             offset = self._op._offsets[j]
             if offset < 0:
                 res = np.concatenate((res[0:offset], 
@@ -185,18 +185,18 @@ class TransposedFullRowBlockOperator[T](TransposedRowBlockOperator[T]):
         self._op = op
 
     def getBlock(self, j: int) -> T:
-        return self._op.getBlock(j).T      # type: ignore
+        return self._op.getBlock(j).T.conj()      # type: ignore
 
     def applyLocal(self, j: int, xj: np.ndarray) -> np.ndarray:
-        return self._op._block_list[j].T @ xj         # type: ignore
+        return self._op._block_list[j].T.conj() @ xj         # type: ignore
     
     def applyGlobal(self, x: np.ndarray) -> np.ndarray:
         res = np.zeros(self._op._block_list[0].T.shape[0])       # type: ignore
         
         cumulative_rows = 0
         for j in range(self._op._num_blocks):
-            res += self._op._block_list[j].T @ x[cumulative_rows:cumulative_rows+self._op._block_list[j].T.shape[1]]        # type: ignore
-            cumulative_rows += self._op._block_list[j].T.shape[1]            # type: ignore
+            res += self._op._block_list[j].T.conj() @ x[cumulative_rows:cumulative_rows+self._op._block_list[j].T.conj().shape[1]]        # type: ignore
+            cumulative_rows += self._op._block_list[j].T.conj().shape[1]            # type: ignore
 
         return res
         
