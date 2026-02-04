@@ -28,7 +28,7 @@ class FullSFactorization[T](SFactorization[T], FullBlockDiagOperator[T]):
                 modified_Aj = Aj # No modification needed
             
             # LU factorization
-            self._block_list[j] = spla.splu(csc_matrix(modified_Aj))
+            self.setBlock(j, spla.splu(csc_matrix(modified_Aj)))
             
 
     def buildLocal(self, j: int):
@@ -42,7 +42,7 @@ class FullSFactorization[T](SFactorization[T], FullBlockDiagOperator[T]):
             modified_Aj = Aj # No modification needed
         
         # LU factorization
-        self._block_list[j] = spla.splu(csc_matrix(modified_Aj))
+        self.setBlock(j, spla.splu(csc_matrix(modified_Aj)))
 
 
     def applyLocal(self, j: int, xj: np.ndarray) -> np.ndarray:

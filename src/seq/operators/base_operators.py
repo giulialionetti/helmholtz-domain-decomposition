@@ -150,7 +150,7 @@ class TransposedFullRowBlockQuasiDiagOperator[T](TransposedBlockQuasiDiagOperato
 
 class FullRowBlockOperator[T](RowBlockOperator[T]):
     def __init__(self, *, num_blocks: int, **kwargs):
-        super(FullRowBlockOperator, self).__init__(num_blocks, **kwargs)
+        super(FullRowBlockOperator, self).__init__(num_blocks)
         self._block_list = [None] * num_blocks
         self._num_rows = 0
         self._num_cols = 0
@@ -162,8 +162,11 @@ class FullRowBlockOperator[T](RowBlockOperator[T]):
     def setBlock(self, j: int, Bj: T):
         # Ignoring row_offs_from_jm1... it is only for rows blocks!
         self._block_list[j] = Bj                                # type: ignore
-        self._num_rows = Bj.shape[0]                           # type: ignore
-        self._num_cols = Bj.shape[1]                           # type: ignore
+        self._num_rows += Bj.shape[0]                           # type: ignore
+        if len(Bj.shape) == 2:
+            self._num_cols = Bj.shape[1]                           # type: ignore
+        else:
+            self._num_cols = 1
 
     def applyLocal(self, j: int, xj: np.ndarray) -> np.ndarray:
         return self._block_list[j] @ xj

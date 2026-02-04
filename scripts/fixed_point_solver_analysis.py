@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 import numpy as np
-from scipy.sparse import csr_matrix
 import logging
 import sys
 import os
@@ -58,22 +57,27 @@ plots_dir = os.path.join(project_root, 'plots')
 os.makedirs(plots_dir, exist_ok=True)
 
 class FixedPointConvergenceCallback:
-    def __init__(self, T: FullTOperator, omega: float, deltas: list[float], true_p: np.ndarray):
+    def __init__(self, params: HelmholtzParameters, T: FullTOperator, omega: float, deltas: list[float], true_p: np.ndarray, iter_freq: int = 20):
+        self._params = params
         self._t_errors = []
         self._bounds = {}
+        self._x_list = []
         self._T = T
         self._omega = omega
         self._deltas = deltas
         self._taus = [np.sqrt(1 - omega*(1-omega)/(delta**2)) for delta in deltas]
         self._true_p = true_p
+        self._iter_freq = iter_freq
 
         for tau in self._taus:
             self._bounds[tau] = []
 
     def __call__(self, n: int, x: np.ndarray, residual: np.ndarray):
-        self._t_errors.append(self._T.applyGlobalNorm(x-self._true_p))
-        for tau in self._taus:
-            self._bounds[tau].append((tau**n) * self._t_errors[0])
+        if n % self._iter_freq == 0:
+            self._t_errors.append(self._T.applyGlobalNorm(x-self._true_p))
+            for tau in self._taus:
+                self._bounds[tau].append((tau**n) * self._t_errors[0])
+            self._x_list.append(x)
 
     def plot(self):
         plt.figure()
@@ -85,8 +89,15 @@ class FixedPointConvergenceCallback:
         plt.ylabel('Error norm', fontsize=11)
         plt.grid(True, alpha=0.3)
         plt.legend(fontsize=9)
-        plt.savefig(os.path.join(plots_dir, f'fixed_point_convergence_w{self._omega}.png'), dpi=150)
+        filename = f'fixed_point_convergence_w{self._omega}_sp{self._params.sp[0][0]}-{self._params.sp[0][1]}'
+        # for p in self._params.sp[1:]:
+        #     filename += f'_{p[0]}-{p[1]}'
+        filename += '.png'
+        
+        plt.savefig(os.path.join(plots_dir, filename), dpi=150)
 
+    def get_x_list(self):
+        return self._x_list
 
 
 def run_convergence_test():
@@ -108,12 +119,12 @@ def run_convergence_test():
     mesh = FullMesh(J, nx_global, ny_global, Lx, Ly)
     boundary = FullBoundary(J, nx_global, mesh)
 
-    B = FullBOperator[csr_matrix](J, mesh, boundary)
-    Q = FullCOperator[csr_matrix](J, mesh)
-    T = FullTOperator[csr_matrix](J, mesh, boundary, B, params)
-    A = FullAOperator[csr_matrix](J, mesh, boundary, params)
+    B = FullBOperator(J, mesh, boundary)
+    Q = FullCOperator(J, mesh)
+    T = FullTOperator(J, mesh, boundary, B, params)
+    A = FullAOperator(J, mesh, boundary, params)
     s_factorization = FullSFactorization(J, A, T, B)
-    BVec = FullBVecOperator[np.ndarray](J, mesh, params)
+    BVec = FullBVecOperator(J, mesh, params)
     
 
     mesh.build()
@@ -175,12 +186,12 @@ def show_theoretical_convergence(omega: float, deltas: list[float]):
     mesh = FullMesh(J, nx_global, ny_global, Lx, Ly)
     boundary = FullBoundary(J, nx_global, mesh)
 
-    B = FullBOperator[csr_matrix](J, mesh, boundary)
-    Q = FullCOperator[csr_matrix](J, mesh)
-    T = FullTOperator[csr_matrix](J, mesh, boundary, B, params)
-    A = FullAOperator[csr_matrix](J, mesh, boundary, params)
+    B = FullBOperator(J, mesh, boundary)
+    Q = FullCOperator(J, mesh)
+    T = FullTOperator(J, mesh, boundary, B, params)
+    A = FullAOperator(J, mesh, boundary, params)
     s_factorization = FullSFactorization(J, A, T, B)
-    BVec = FullBVecOperator[np.ndarray](J, mesh, params)
+    BVec = FullBVecOperator(J, mesh, params)
     
 
     mesh.build()
@@ -223,7 +234,7 @@ def show_theoretical_convergence(omega: float, deltas: list[float]):
 
     # ======================= APPLYING FIXED POINT ==============================
 
-    callback = FixedPointConvergenceCallback(T, omega, deltas, x_sol_precise)
+    callback = FixedPointConvergenceCallback(params, T, omega, deltas, x_sol_precise)
 
     max_iter = 400
     tol = 1e-8 # double precision
@@ -266,12 +277,12 @@ def plot_solution_over_iterations(omega: float):
     mesh = FullMesh(J, nx_global, ny_global, Lx, Ly)
     boundary = FullBoundary(J, nx_global, mesh)
 
-    B = FullBOperator[csr_matrix](J, mesh, boundary)
-    Q = FullCOperator[csr_matrix](J, mesh)
-    T = FullTOperator[csr_matrix](J, mesh, boundary, B, params)
-    A = FullAOperator[csr_matrix](J, mesh, boundary, params)
+    B = FullBOperator(J, mesh, boundary)
+    Q = FullCOperator(J, mesh)
+    T = FullTOperator(J, mesh, boundary, B, params)
+    A = FullAOperator(J, mesh, boundary, params)
     s_factorization = FullSFactorization(J, A, T, B)
-    BVec = FullBVecOperator[np.ndarray](J, mesh, params)
+    BVec = FullBVecOperator(J, mesh, params)
     
 
     mesh.build()
@@ -367,8 +378,8 @@ def plot_solution_over_iterations_gif(omega: float):
     logger.info(f" k={kappa}, Grid={nx_global}x{ny_global}")
     logger.info("="*60)
 
-    sp = [np.array([0.5, 0.75 , 1.0])]
-    params = HelmholtzParameters(Lx, Ly, kappa, sp=sp)
+    # sp = [np.array([0.5, 0.75 , 1.0])]
+    params = HelmholtzParameters(Lx, Ly, kappa)
     
     # Mesh: ~10 points per wavelength (lambda ~ 0.4)
     
@@ -378,12 +389,12 @@ def plot_solution_over_iterations_gif(omega: float):
     mesh = FullMesh(J, nx_global, ny_global, Lx, Ly)
     boundary = FullBoundary(J, nx_global, mesh)
 
-    B = FullBOperator[csr_matrix](J, mesh, boundary)
-    Q = FullCOperator[csr_matrix](J, mesh)
-    T = FullTOperator[csr_matrix](J, mesh, boundary, B, params)
-    A = FullAOperator[csr_matrix](J, mesh, boundary, params)
+    B = FullBOperator(J, mesh, boundary)
+    Q = FullCOperator(J, mesh)
+    T = FullTOperator(J, mesh, boundary, B, params)
+    A = FullAOperator(J, mesh, boundary, params)
     s_factorization = FullSFactorization(J, A, T, B)
-    BVec = FullBVecOperator[np.ndarray](J, mesh, params)
+    BVec = FullBVecOperator(J, mesh, params)
     
 
     mesh.build()
@@ -406,18 +417,27 @@ def plot_solution_over_iterations_gif(omega: float):
     S = FullSOperator(J, s_factorization, B, T, Q)
     Pi_op = FullPiOperator(J, nx_global)
 
-    class FixedPointXCallback:
-        def __init__(self, iter_limit : int = 20):
-            self._iter_limit = iter_limit
-            self._x_list = []
-        def __call__(self, iter: int, x: np.ndarray, residuals: list):
-            if iter % self._iter_limit == 0:
-                self._x_list.append(x)
+    # ================ APPLYING SUPER PRECISE FIXED POINT =======================
+    max_iter = 1000
+    tol = 1e-10 # double precision
+    
+    logger.info("Starting Fixed Point Solver...")
+    x_sol_precise, res, converged = fixed_point_solver(-g, S, Pi_op, omega, max_iter, tol)
+    
+    logger.info("-" * 30)
+    logger.info(f"Iterations:     {len(res)}")
+    logger.info(f"Final Residual: {res[-1]:.6e}")
+    logger.info(f"Converged:      {converged}")
+    logger.info("-" * 30)
+    
+    if converged:
+        logger.info("SUCCESS: Solver converged!")
+    else:
+        logger.warning("WARNING: Solver did not reach tolerance (check k vs h).")
 
-        def get_x_list(self):
-            return self._x_list
 
-    callback = FixedPointXCallback(1)
+    # ======================= APPLYING FIXED POINT ==============================
+    callback = FixedPointConvergenceCallback(params=params, T=T, omega=omega, deltas=[0.65], true_p=x_sol_precise, iter_freq=1)
 
     max_iter = 400
     tol = 1e-8 # double precision
@@ -495,10 +515,13 @@ def plot_solution_over_iterations_gif(omega: float):
         buf.close()
 
         plt.close(fig)
+        plt.close()
 
-    filename = f'fixed_point_evolution_sp{sp[0][0]}-{sp[0][1]}'
-    for p in sp[1:]:
-        filename += f'_{p[0]}-{p[1]}'
+        callback.plot()
+
+    filename = f'fixed_point_evolution_sp{params.sp[0][0]}-{params.sp[0][1]}'
+    # for p in params.sp[1:]:
+    #     filename += f'_{p[0]}-{p[1]}'
     filename += '.gif'
     gif_path = os.path.join(
         plots_dir,

@@ -321,7 +321,9 @@ def task_6():
     # components = build_ddm_solver(nx, ny, J, params)
     # factorizations, Bj_list, Cj_list, Tj_list, bj_list, vtxj_list, eltj_list, g = components
 
-    x_solution, residuals, info, _, _ = solver6.solve()
+    # x_solution, residuals, info, _, _ = solver6.solve()
+
+    x_solution, res, converged = fixed_point_solver(-g, S, Pi, 0.1, 400, 10e-10)
 
     # Compute local solutions
     uj_list = []

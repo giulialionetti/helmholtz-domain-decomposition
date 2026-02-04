@@ -5,7 +5,7 @@ from src.seq.operators.base_operators import FullRowBlockOperator
 from src.common.operators.operators import COperator
 from src.seq.mesh.mesh import FullMesh
 
-class FullCOperator[T](COperator, FullRowBlockOperator[T]):
+class FullCOperator(COperator, FullRowBlockOperator[csr_matrix]):
     def __init__(self, num_blocks: int, mesh: FullMesh):
         super(FullCOperator, self).__init__(mesh=mesh, num_blocks=num_blocks)
         self._mesh = mesh
@@ -56,7 +56,7 @@ class FullCOperator[T](COperator, FullRowBlockOperator[T]):
             else:
                 Cj = csr_matrix((0, n_interface_total))
                 
-            self._block_list[j] = Cj
+            self.setBlock(j,Cj)
 
 
     def buildLocal(self, j: int):
@@ -113,4 +113,4 @@ class FullCOperator[T](COperator, FullRowBlockOperator[T]):
         else:
             Cj = csr_matrix((0, n_interface_total))
             
-        self._block_list[j] = Cj
+        self.setBlock(j, Cj)

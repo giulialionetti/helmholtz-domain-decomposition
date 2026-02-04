@@ -20,7 +20,8 @@ class FullTOperator[T](TOperator, FullBlockDiagOperator):
             beltj_artf = self._boundary.getLocal(j)[1]
             if len(beltj_artf) == 0:
                 # No artificial interfaces
-                return csr_matrix((0, 0))
+                self.setBlock(j, csr_matrix((0,0)))
+                continue
             
             # Build mass matrix on artificial interfaces
             M_interface = mass(vtxj, beltj_artf)
@@ -37,7 +38,8 @@ class FullTOperator[T](TOperator, FullBlockDiagOperator):
         beltj_artf = self._boundary.getLocal(j)[1]
         if len(beltj_artf) == 0:
             # No artificial interfaces
-            return csr_matrix((0, 0))
+            self.setBlock(j, csr_matrix((0,0)))
+            return
         
         # Build mass matrix on artificial interfaces
         M_interface = mass(vtxj, beltj_artf)

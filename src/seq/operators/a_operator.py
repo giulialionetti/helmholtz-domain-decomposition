@@ -8,7 +8,7 @@ from src.seq.operators.base_operators import FullBlockDiagOperator
 from src.seq.mesh.mesh import FullBoundary, FullMesh
 
     
-class FullAOperator[T](AOperator, FullBlockDiagOperator[T]):
+class FullAOperator(AOperator, FullBlockDiagOperator[csr_matrix]):
     def __init__(self, num_blocks, mesh: FullMesh, boundary: FullBoundary, params: HelmholtzParameters):
         super(FullAOperator, self).__init__(mesh=mesh, boundary=boundary, params=params, num_blocks=num_blocks)
 
@@ -30,7 +30,7 @@ class FullAOperator[T](AOperator, FullBlockDiagOperator[T]):
             # Construct Helmholtz operator: A = K - k²M - ikMb
             Aj = K - self._params.kappa**2 * M - 1j * self._params.kappa * Mb
             
-            self._block_list[j] = csr_matrix(Aj)
+            self.setBlock(j, csr_matrix(Aj))
 
 
     def buildLocal(self, j:int):
@@ -63,4 +63,4 @@ class FullAOperator[T](AOperator, FullBlockDiagOperator[T]):
         # Construct Helmholtz operator: A = K - k²M - ikMb
         Aj = K - self._params.kappa**2 * M - 1j * self._params.kappa * Mb
         
-        self._block_list[j] = csr_matrix(Aj)
+        self.setBlock(j,csr_matrix(Aj))

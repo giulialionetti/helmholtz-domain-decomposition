@@ -1,11 +1,12 @@
 import numpy as np
+from scipy.sparse import csr_matrix
 from src.common.helmholtz.helmholtz_param import HelmholtzParameters
 from src.common.helmholtz.system_assembly import mass, point_source
-from src.seq.operators.base_operators import FullBlockDiagOperator
+from src.seq.operators.base_operators import FullRowBlockOperator
 from src.common.operators.operators import BVecOperator
 from src.seq.mesh.mesh import FullMesh
 
-class FullBVecOperator[T](BVecOperator, FullBlockDiagOperator[T]):
+class FullBVecOperator(BVecOperator, FullRowBlockOperator[np.ndarray]):
     def __init__(self, num_blocks: int, mesh: FullMesh, params: HelmholtzParameters):
         super(BVecOperator, self).__init__(mesh=mesh, params=params, num_blocks=num_blocks)
         self._mesh = mesh
@@ -23,7 +24,7 @@ class FullBVecOperator[T](BVecOperator, FullBlockDiagOperator[T]):
             # RHS: bj = M @ f
             bj = M @ f
 
-            self._block_list[j] = bj
+            self.setBlock(j,bj)
 
 
     def buildLocal(self, j: int):
@@ -51,7 +52,7 @@ class FullBVecOperator[T](BVecOperator, FullBlockDiagOperator[T]):
         # RHS: bj = M @ f
         bj = M @ f
 
-        self._block_list[j] = bj
+        self.setBlock(j,bj)
 
     def buildGlobal(self, sp: list, kappa: float):
         pass

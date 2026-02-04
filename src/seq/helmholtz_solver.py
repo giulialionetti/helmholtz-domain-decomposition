@@ -77,12 +77,12 @@ class HelmholtzSolver:
         self._mesh = FullMesh(self._J, self._params.nx, self._params.ny, self._params.Lx, self._params.Ly)
         self._boundary = FullBoundary(self._J, self._params.nx, self._mesh)
 
-        self._B = FullBOperator[csr_matrix](self._J, self._mesh, self._boundary)
-        self._Q = FullCOperator[csr_matrix](self._J, self._mesh)
-        self._T = FullTOperator[csr_matrix](self._J, self._mesh, self._boundary, self._B, self._params)
-        self._A = FullAOperator[csr_matrix](self._J, self._mesh, self._boundary, self._params)
+        self._B = FullBOperator(self._J, self._mesh, self._boundary)
+        self._Q = FullCOperator(self._J, self._mesh)
+        self._T = FullTOperator(self._J, self._mesh, self._boundary, self._B, self._params)
+        self._A = FullAOperator(self._J, self._mesh, self._boundary, self._params)
         self._s_factorization = FullSFactorization(self._J, self._A, self._T, self._B)
-        self._BVec = FullBVecOperator[np.ndarray](self._J, self._mesh, self._params)
+        self._BVec = FullBVecOperator(self._J, self._mesh, self._params)
         
 
         self._mesh.build()

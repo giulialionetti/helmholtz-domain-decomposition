@@ -6,7 +6,7 @@ from src.seq.mesh.mesh import FullMesh, FullBoundary
 from src.common.operators.operators import BOperator
 
 
-class FullBOperator[T](BOperator, FullBlockDiagOperator[T]):
+class FullBOperator(BOperator, FullBlockDiagOperator[csr_matrix]):
     def __init__(self, num_blocks: int, mesh: FullMesh, boundary: FullBoundary):
         super(BOperator, self).__init__(mesh=mesh, boundary=boundary, num_blocks=num_blocks)
         self._mesh = mesh
@@ -36,7 +36,7 @@ class FullBOperator[T](BOperator, FullBlockDiagOperator[T]):
             
             Bj = csr_matrix((data, (row_indices, col_indices)), shape=(n_interface, nv_local))
             
-            self._block_list[j] = Bj
+            self.setBlock(j,Bj)
 
     def buildLocal(self, j: int):
         r"""
@@ -82,4 +82,4 @@ class FullBOperator[T](BOperator, FullBlockDiagOperator[T]):
         
         Bj = csr_matrix((data, (row_indices, col_indices)), shape=(n_interface, nv_local))
         
-        self._block_list[j] = Bj
+        self.setBlock(j, Bj)
